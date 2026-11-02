@@ -1055,18 +1055,25 @@ public partial class MainWindow : Window
     /** 弹出的二维码窗口；重复生成时先关掉旧的 */
     private Window? qrWindow;
 
-    /// <summary>弹出 560px 的二维码窗口：右栏再宽也不如独立窗口好用，而且这个尺寸手机最好扫</summary>
+    /// <summary>弹出二维码窗口：右栏再宽也不如独立窗口好用。
+    /// 尺寸按屏幕可用高度尽量给大——码的物理尺寸越大，手机在同样距离下
+    /// 拍到的模块像素越多，摩尔纹的影响也相对越小，越好扫。</summary>
     private void OpenQrWindow(QRCodeData data, string payload)
     {
         qrWindow?.Close();
         lastPayload = payload;
 
+        // 目标 760px，但别超过屏幕可用高度，小屏笔记本也不至于顶出屏幕
+        var workH = SystemParameters.WorkArea.Height;
+        var px = (int)Math.Min(760, workH - 180);
+        if (px < 420) px = 420;
+
         var img = new System.Windows.Controls.Image
         {
-            Source = RenderQr(data, 560),
+            Source = RenderQr(data, px),
             Stretch = System.Windows.Media.Stretch.Uniform,
-            Width = 560,
-            Height = 560,
+            Width = px,
+            Height = px,
         };
         System.Windows.Media.RenderOptions.SetBitmapScalingMode(
             img, System.Windows.Media.BitmapScalingMode.NearestNeighbor);
@@ -1086,8 +1093,8 @@ public partial class MainWindow : Window
         {
             Title = "PocketNAS 扫码导入（关闭即销毁）",
             Content = panel,
-            Width = 620,
-            Height = 680,
+            Width = px + 60,
+            Height = px + 120,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             Owner = this,
             Background = System.Windows.Media.Brushes.White,
