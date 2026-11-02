@@ -1,7 +1,7 @@
 <Window x:Class="SshHelper.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="SSH 密钥登录配置助手" Height="600" Width="1100"
+        Title="SSH 密钥登录配置助手" Height="720" Width="1100"
         Background="#0d1117" WindowStartupLocation="CenterScreen"
         ResizeMode="CanMinimize">
 
@@ -35,15 +35,11 @@
                 <FlowDocument/>
             </RichTextBox>
         </Grid>
-        <!-- 右侧面板：结果与连接 -->
-        <Grid Grid.Column="1" Background="#161b22">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
-            </Grid.RowDefinitions>
+        <!-- 右侧面板：结果与连接（套 ScrollViewer，内容再高也不会被窗口底边裁掉） -->
+        <ScrollViewer Grid.Column="1" Background="#161b22" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
             <!-- 卡片1：连接信息 -->
-            <Border Grid.Row="0" BorderBrush="#30363d" BorderThickness="0,0,0,1" Padding="20">
+            <Border BorderBrush="#30363d" BorderThickness="0,0,0,1" Padding="20">
                 <StackPanel>
                     <TextBlock Text="📡 连接信息" Foreground="#8b949e" FontWeight="Bold" FontSize="12" Margin="0,0,0,15"/>
                     <Grid Margin="0,0,0,8">
@@ -73,7 +69,7 @@
                 </StackPanel>
             </Border>
             <!-- 卡片2：私钥管理 -->
-            <Border Grid.Row="1" BorderBrush="#30363d" BorderThickness="0,0,0,1" Padding="20">
+            <Border BorderBrush="#30363d" BorderThickness="0,0,0,1" Padding="20">
                 <StackPanel>
                     <TextBlock Text="🔑 私钥管理" Foreground="#8b949e" FontWeight="Bold" FontSize="12" Margin="0,0,0,15"/>
                     <Button Content="👁 显示/隐藏私钥文本" Click="ToggleKey_Click"
@@ -99,7 +95,7 @@
                 </StackPanel>
             </Border>
             <!-- 卡片3：二维码（PocketNAS 扫码导入） -->
-            <Border Grid.Row="2" Padding="16">
+            <Border Padding="16">
                 <StackPanel>
                     <Grid Margin="0,0,0,10">
                         <TextBlock Text="📱 PocketNAS 扫码导入" Foreground="#8b949e" FontWeight="Bold" FontSize="12"
@@ -113,21 +109,17 @@
                         SSH 服务启动后，点右上「生成二维码」手动出码；PocketNAS → SSH → 右上角扫码，
                         直接导入私钥连接。<Bold Foreground="#f85149">二维码里含私钥，请确保周围无人窥视！</Bold>
                     </TextBlock>
-                    <Border x:Name="QrHolder" Background="White" CornerRadius="8"
-                            HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed">
-                        <!-- 宽度跟着右栏走，别写死尺寸：右栏只有 400px 左右，写大了会被裁掉一截 -->
-                        <Image x:Name="QrImage" Stretch="Uniform" Margin="6" Cursor="Hand"
-                               Width="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=StackPanel}}"
-                               MaxHeight="400"
-                               RenderOptions.BitmapScalingMode="NearestNeighbor"
-                               ToolTip="点击放大，更好扫"
-                               MouseLeftButtonUp="QrImage_MouseLeftButtonUp"/>
-                    </Border>
+                    <!-- 二维码只在弹窗里出现：主界面不留任何含私钥的图像 -->
                     <TextBlock x:Name="TxtQrHint" TextWrapping="Wrap" Foreground="#8b949e" FontSize="10"
                                HorizontalAlignment="Center" Margin="0,8,0,0"
                                Text="二维码未生成 —— 需先「一键配置并启动」sshd 服务"/>
+                    <Button x:Name="BtnQrAgain" Content="重新显示二维码" Click="BtnQrAgain_Click"
+                            Background="#21262d" Foreground="#ff7b72" Padding="10,4"
+                            BorderThickness="1" BorderBrush="#ff7b72" Cursor="Hand"
+                            HorizontalAlignment="Center" Margin="0,8,0,0" Visibility="Collapsed"/>
                 </StackPanel>
             </Border>
-        </Grid>
+            </StackPanel>
+        </ScrollViewer>
     </Grid>
 </Window>

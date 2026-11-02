@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
@@ -179,13 +179,16 @@ public partial class MainWindow : Window
         }
     }
 
-    /// <summary>隐藏已生成的二维码并更新提示（密钥轮换后调用；可能跑在后台线程，UI 走 Dispatcher）</summary>
+    /// <summary>作废二维码：关掉弹窗、清掉内容、收起按钮（密钥轮换后调用；
+    /// 可能跑在后台线程，UI 走 Dispatcher）</summary>
     private void InvalidateQr(string hint)
     {
         Dispatcher.Invoke(() =>
         {
-            QrImage.Source = null;
-            QrHolder.Visibility = Visibility.Collapsed;
+            qrWindow?.Close();
+            qrWindow = null;
+            lastPayload = null;
+            BtnQrAgain.Visibility = Visibility.Collapsed;
             TxtQrHint.Text = hint;
         });
         AppendLog($"\n{hint}\n", LogColor.Yellow);
@@ -1023,24 +1026,80 @@ public partial class MainWindow : Window
         return null;
     }
 
-    /// <summary>把 payload 画成二维码显示出来。
-    /// 右栏只有 400px 左右，内联显示受限于栏宽；点击可弹出 560px 的大图，那个尺寸才好扫。
-    /// 出图一律整数像素倍 + 关闭平滑插值，否则模块糊成一团手机解不开。</summary>
+    /// <summary>生成二维码：私钥只在弹出的窗口里显示，主界面不落任何图像</summary>
     private void ShowQr(string payload)
     {
         using var gen = new QRCodeGenerator();
         using var data = gen.CreateQrCode(payload, QRCodeGenerator.ECCLevel.M);
         lastPayload = payload;
 
-        var bmp = RenderQr(data, 470);
-        QrImage.Source = bmp;
-        QrHolder.Visibility = Visibility.Visible;
-        TxtQrHint.Text = $"二维码 {data.ModuleMatrix.Count}×{data.ModuleMatrix.Count} 模块 —— " +
-            "点击放大更好扫；扫完请隐藏，避免私钥暴露在屏幕上";
+        TxtQrHint.Text = $"二维码 {data.ModuleMatrix.Count}×{data.ModuleMatrix.Count} 模块已弹出 —— " +
+            "扫弹窗里那张；关掉后可按下面按钮重新弹出";
+        BtnQrAgain.Visibility = Visibility.Visible;
+
+        OpenQrWindow(data, payload);
     }
 
-    /// <summary>当前二维码内容，放大窗口复用它重新出大图</summary>
+    /// <summary>重新弹出刚才那张二维码（窗口被关掉时用）</summary>
+    private void BtnQrAgain_Click(object sender, RoutedEventArgs e)
+    {
+        if (lastPayload == null) return;
+        using var gen = new QRCodeGenerator();
+        using var data = gen.CreateQrCode(lastPayload, QRCodeGenerator.ECCLevel.M);
+        OpenQrWindow(data, lastPayload);
+    }
+
+    /// <summary>当前二维码内容，重新弹窗时复用</summary>
     private string? lastPayload;
+
+    /** 弹出的二维码窗口；重复生成时先关掉旧的 */
+    private Window? qrWindow;
+
+    /// <summary>弹出 560px 的二维码窗口：右栏再宽也不如独立窗口好用，而且这个尺寸手机最好扫</summary>
+    private void OpenQrWindow(QRCodeData data, string payload)
+    {
+        qrWindow?.Close();
+        lastPayload = payload;
+
+        var img = new System.Windows.Controls.Image
+        {
+            Source = RenderQr(data, 560),
+            Stretch = System.Windows.Media.Stretch.Uniform,
+            Width = 560,
+            Height = 560,
+        };
+        System.Windows.Media.RenderOptions.SetBitmapScalingMode(
+            img, System.Windows.Media.BitmapScalingMode.NearestNeighbor);
+
+        var panel = new StackPanel { Background = System.Windows.Media.Brushes.White };
+        panel.Children.Add(img);
+        panel.Children.Add(new TextBlock
+        {
+            Text = "用 PocketNAS「SSH → 扫码添加」扫描 · 二维码含私钥，关闭窗口即销毁，请勿截屏分享",
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Foreground = System.Windows.Media.Brushes.Black,
+            FontSize = 12,
+            Margin = new Thickness(0, 6, 0, 12),
+        });
+
+        var win = new Window
+        {
+            Title = "PocketNAS 扫码导入（关闭即销毁）",
+            Content = panel,
+            Width = 620,
+            Height = 680,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Owner = this,
+            Background = System.Windows.Media.Brushes.White,
+            ResizeMode = ResizeMode.NoResize,
+        };
+        win.Closed += (_, _) =>
+        {
+            if (ReferenceEquals(qrWindow, win)) qrWindow = null;
+        };
+        qrWindow = win;
+        win.Show();
+    }
 
     private static BitmapImage RenderQr(QRCodeData data, int targetPx)
     {
@@ -1056,51 +1115,6 @@ public partial class MainWindow : Window
         }
         bmp.Freeze();
         return bmp;
-    }
-
-    /// <summary>点二维码弹出大图窗口：内联尺寸受右栏限制，放大后才容易扫上</summary>
-    private void QrImage_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
-    {
-        if (lastPayload == null) return;
-        using var gen = new QRCodeGenerator();
-        using var data = gen.CreateQrCode(lastPayload, QRCodeGenerator.ECCLevel.M);
-
-        var img = new System.Windows.Controls.Image
-        {
-            Source = RenderQr(data, 560),
-            Stretch = System.Windows.Media.Stretch.Uniform,
-            Width = 560,
-            Height = 560,
-        };
-        System.Windows.Media.RenderOptions.SetBitmapScalingMode(
-            img, System.Windows.Media.BitmapScalingMode.NearestNeighbor);
-
-        var panel = new StackPanel
-        {
-            Background = System.Windows.Media.Brushes.White,
-            Orientation = System.Windows.Controls.Orientation.Vertical,
-        };
-        panel.Children.Add(img);
-        panel.Children.Add(new TextBlock
-        {
-            Text = "用 PocketNAS「SSH → 扫码添加」扫描 · 二维码含私钥，请勿截屏分享",
-            HorizontalAlignment = HorizontalAlignment.Center,
-            Foreground = System.Windows.Media.Brushes.Black,
-            FontSize = 12,
-            Margin = new Thickness(0, 4, 0, 10),
-        });
-
-        new Window
-        {
-            Title = "二维码（点击任意处关闭）",
-            Content = panel,
-            Width = 620,
-            Height = 660,
-            SizeToContent = SizeToContent.Manual,
-            WindowStartupLocation = WindowStartupLocation.CenterScreen,
-            Background = System.Windows.Media.Brushes.White,
-            Topmost = true,
-        }.ShowDialog();
     }
 
     // 线程安全的彩色日志追加
