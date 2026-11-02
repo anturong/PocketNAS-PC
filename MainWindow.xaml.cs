@@ -975,14 +975,14 @@ public partial class MainWindow : Window
             type = "ssh",
             name = Environment.MachineName,
             url = $"sftp://{ip}:22/",
-            user = TxtUser.Text,
+            user = user,      // 用 UI 线程取好的入参，别再读 TxtUser
             pass = "",
             fp = fp ?? "",
             key = keyText,
         });
 
         Dispatcher.Invoke(() => AppendLog(
-            $"二维码已生成：{TxtUser.Text}@{ip}:22（{(fp != null ? "含主机指纹" : "不含主机指纹")}，含私钥）\n",
+            $"二维码已生成：{user}@{ip}:22（{(fp != null ? "含主机指纹" : "不含主机指纹")}，含私钥）\n",
             LogColor.Green));
         return payload;
     }
