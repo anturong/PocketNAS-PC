@@ -901,7 +901,10 @@ public partial class MainWindow : Window
         BtnQr.IsEnabled = false;
         try
         {
-            var payload = await Task.Run(() => BuildPocketNasPayload());
+            // UI 控件的值必须在 UI 线程先取好再进后台线程（bb581d5 修过的同类坑，别再踩）
+            var user = TxtUser.Text;
+            var ip = IpSelector.SelectedItem as string;
+            var payload = await Task.Run(() => BuildPocketNasPayload(user, ip));
             if (payload != null)
                 ShowQr(payload);
         }
@@ -915,8 +918,9 @@ public partial class MainWindow : Window
         }
     }
 
-    /// <summary>拼 PocketNAS 连接 JSON；前提不满足时打日志并返回 null</summary>
-    private string? BuildPocketNasPayload()
+    /// <summary>拼 PocketNAS 连接 JSON；前提不满足时打日志并返回 null。
+    /// user / ip 由调用方在 UI 线程取好传入，这里只做纯计算与文件、服务访问。</summary>
+    private string? BuildPocketNasPayload(string user, string? ip)
     {
         // 1. sshd 必须在运行 —— 服务没起来，码里的地址扫了也连不上
         try
@@ -951,8 +955,7 @@ public partial class MainWindow : Window
             return null;
         }
 
-        // 3. 地址：IpSelector 当前选中项，物理/虚拟组网地址都照原样用，不做网段过滤
-        var ip = IpSelector.SelectedItem as string;
+        // 3. 地址：调用方在 UI 线程取好的 IpSelector 选中项，物理/虚拟组网地址都照原样用，不做网段过滤
         if (string.IsNullOrWhiteSpace(ip))
         {
             Dispatcher.Invoke(() => AppendLog("没有可用的局域网地址，无法生成二维码。\n", LogColor.Red));
