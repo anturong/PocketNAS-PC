@@ -1020,12 +1020,16 @@ public partial class MainWindow : Window
         return null;
     }
 
-    /// <summary>把 payload 画成二维码显示出来</summary>
+    /// <summary>把 payload 画成二维码显示出来。
+    /// 密钥载荷动辄 500+ 字符（version 18+），显示尺寸必须给够、按整数像素倍渲染，
+    /// 再禁掉平滑插值，否则模块糊成一团手机解不开。</summary>
     private void ShowQr(string payload)
     {
         using var gen = new QRCodeGenerator();
         using var data = gen.CreateQrCode(payload, QRCodeGenerator.ECCLevel.M);
-        var png = new PngByteQRCode(data).GetGraphic(6);
+        // 每模块像素数：目标整图约 470px，向下取整且至少 4，保证整数倍无重采样
+        var ppm = Math.Max(4, 470 / data.ModuleMatrix.Count);
+        var png = new PngByteQRCode(data).GetGraphic(ppm);
 
         var bmp = new BitmapImage();
         using (var ms = new MemoryStream(png))
@@ -1038,7 +1042,7 @@ public partial class MainWindow : Window
         bmp.Freeze();
         QrImage.Source = bmp;
         QrHolder.Visibility = Visibility.Visible;
-        TxtQrHint.Text = "用 PocketNAS「SSH → 扫码」导入；扫完请点「生成二维码」旁空白处隐藏，避免私钥暴露在屏幕上";
+        TxtQrHint.Text = $"二维码 {data.ModuleMatrix.Count}×{data.ModuleMatrix.Count} 模块、{png.Length / 1024}KB —— 手机对准屏幕 20–40cm，太近反而对不上焦；扫完请隐藏，避免私钥暴露";
     }
 
     // 线程安全的彩色日志追加

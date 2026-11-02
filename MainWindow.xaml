@@ -112,9 +112,10 @@
                         SSH 服务启动后，点右上「生成二维码」手动出码；PocketNAS → SSH → 右上角扫码，
                         直接导入私钥连接。<Bold Foreground="#f85149">二维码里含私钥，请确保周围无人窥视！</Bold>
                     </TextBlock>
-                    <Border x:Name="QrHolder" Background="White" Width="248" Height="248" CornerRadius="8"
-                            HorizontalAlignment="Center" Visibility="Collapsed">
-                        <Image x:Name="QrImage" Stretch="Uniform" Margin="8"/>
+                    <Border x:Name="QrHolder" Background="White" CornerRadius="8"
+                            HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed">
+                        <Image x:Name="QrImage" Stretch="Uniform" MaxWidth="470" MaxHeight="470" Margin="6"
+                               RenderOptions.BitmapScalingMode="NearestNeighbor"/>
                     </Border>
                     <TextBlock x:Name="TxtQrHint" TextWrapping="Wrap" Foreground="#8b949e" FontSize="10"
                                HorizontalAlignment="Center" Margin="0,8,0,0"
