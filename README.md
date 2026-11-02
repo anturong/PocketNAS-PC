@@ -24,6 +24,13 @@ Windows SSH 服务管理工具 — WPF 图形界面，用于管理 OpenSSH 服�
 - 测试本机密钥登录
 - 显示详细错误信息
 
+### PocketNAS 扫码导入 (v1.04+)
+- SSH 服务启动后，点「手机扫码导入」卡片右上角的**生成二维码**手动出码
+- 二维码内容：`sftp://<选中IP>:22/` + 用户名 + 主机指纹 + **完整 ED25519 私钥**（PocketNAS `DavQr` 认识的 JSON）
+- 地址取「局域网地址」下拉框当前选中项（物理网卡或 Tailscale/ZeroTier 等虚拟组网地址都照原样用）
+- PocketNAS 扫码后私钥自动落盘到应用私有目录，按密钥认证直连，零手填
+- **安全**：二维码即私钥本身，点按才生成；更换密钥后旧码自动作废（重新生成前屏幕上不留码）
+
 ### 智能路径查找 (v1.01+)
 - 自动搜索 `ssh-keygen`/`ssh` 位置：System32 → ProgramFiles → Git for Windows → PATH
 - 不再依赖系统 PATH 环境变量

@@ -97,17 +97,28 @@
                             BorderThickness="1" BorderBrush="#30363d" Margin="0,10,0,0" Cursor="Hand"/>
                 </StackPanel>
             </Border>
-            <!-- 卡片3：二维码（占位） -->
+            <!-- 卡片3：二维码（PocketNAS 扫码导入） -->
             <Border Grid.Row="2" Padding="20">
                 <StackPanel>
-                    <TextBlock Text="📱 手机扫码导入" Foreground="#8b949e" FontWeight="Bold" FontSize="12" Margin="0,0,0,10"/>
-                    <TextBlock TextWrapping="Wrap" Foreground="#8b949e" FontSize="11" Margin="0,0,0,15">
-                        使用 Termius、JuiceSSH 扫码可直接导入。请确保周围无人窥视！
+                    <Grid Margin="0,0,0,10">
+                        <TextBlock Text="📱 PocketNAS 扫码导入" Foreground="#8b949e" FontWeight="Bold" FontSize="12"
+                                   VerticalAlignment="Center"/>
+                        <Button x:Name="BtnQr" Content="生成二维码" Click="BtnQr_Click"
+                                Background="#21262d" Foreground="#ff7b72" Padding="10,3"
+                                BorderThickness="1" BorderBrush="#ff7b72" Cursor="Hand"
+                                HorizontalAlignment="Right" VerticalAlignment="Center" MinWidth="110"/>
+                    </Grid>
+                    <TextBlock TextWrapping="Wrap" Foreground="#8b949e" FontSize="11" Margin="0,0,0,12">
+                        SSH 服务启动后，点右上「生成二维码」手动出码；PocketNAS → SSH → 右上角扫码，
+                        直接导入私钥连接。<Bold Foreground="#f85149">二维码里含私钥，请确保周围无人窥视！</Bold>
                     </TextBlock>
-                    <!-- 这里预留二维码位置 -->
-                    <Border Background="White" Width="120" Height="120" CornerRadius="8" HorizontalAlignment="Center">
-                        <TextBlock Text="二维码占位区" Foreground="Black" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="10"/>
+                    <Border x:Name="QrHolder" Background="White" Width="248" Height="248" CornerRadius="8"
+                            HorizontalAlignment="Center" Visibility="Collapsed">
+                        <Image x:Name="QrImage" Stretch="Uniform" Margin="8"/>
                     </Border>
+                    <TextBlock x:Name="TxtQrHint" TextWrapping="Wrap" Foreground="#8b949e" FontSize="10"
+                               HorizontalAlignment="Center" Margin="0,8,0,0"
+                               Text="二维码未生成 —— 需先「一键配置并启动」sshd 服务"/>
                 </StackPanel>
             </Border>
         </Grid>

@@ -16,6 +16,9 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Documents;
+using System.Windows.Media.Imaging;
+using System.Text.Json;
+using QRCoder;
 
 namespace SshHelper;
 
@@ -169,6 +172,23 @@ public partial class MainWindow : Window
         {
             AppendLog($"\n更换密钥失败：{ex.Message}\n", LogColor.Red);
         }
+        finally
+        {
+            // 密钥已经换过（或可能换过），之前生成的二维码全部作废 —— 必须手动重新生成
+            InvalidateQr("密钥已更换，旧二维码作废；确认 SSH 服务正常后请重新「生成二维码」");
+        }
+    }
+
+    /// <summary>隐藏已生成的二维码并更新提示（密钥轮换后调用；可能跑在后台线程，UI 走 Dispatcher）</summary>
+    private void InvalidateQr(string hint)
+    {
+        Dispatcher.Invoke(() =>
+        {
+            QrImage.Source = null;
+            QrHolder.Visibility = Visibility.Collapsed;
+            TxtQrHint.Text = hint;
+        });
+        AppendLog($"\n{hint}\n", LogColor.Yellow);
     }
 
     private void BackupKeys()
@@ -682,6 +702,8 @@ public partial class MainWindow : Window
             // 6. 测试连接
             AppendLog("\n=== 测试本机密钥登录 ===\n", LogColor.Cyan);
             TestSshConnection();
+
+            AppendLog("\n配置完成：现在可以点右上「生成二维码」，用 PocketNAS 扫码导入私钥连接。\n", LogColor.Green);
         }
         catch (Exception ex)
         {
@@ -865,6 +887,158 @@ public partial class MainWindow : Window
             else
                 AppendLog("复制失败：剪贴板被其他进程占用\n", LogColor.Red);
         }
+    }
+
+    // ==================== PocketNAS 扫码导入 ====================
+    //
+    // 二维码内容是 PocketNAS（安卓端文件管理器）DavQr 认识的 JSON：
+    //   {"v":1,"type":"ssh","name":...,"url":"sftp://<ip>:22/","user":...,"pass":"","fp":"SHA256:...","key":"<PEM>"}
+    // key 是完整 OpenSSH 私钥文本（本工具生成的 ed25519 无口令），手机扫到后落盘并按密钥认证直连。
+    // 前提：sshd 已在运行（一键配置后生效）；地址取 IpSelector 当前选中项（物理网卡或虚拟组网地址都照原样用）。
+
+    private async void BtnQr_Click(object sender, RoutedEventArgs e)
+    {
+        BtnQr.IsEnabled = false;
+        try
+        {
+            var payload = await Task.Run(() => BuildPocketNasPayload());
+            if (payload != null)
+                ShowQr(payload);
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"生成二维码失败：{ex.Message}\n", LogColor.Red);
+        }
+        finally
+        {
+            BtnQr.IsEnabled = true;
+        }
+    }
+
+    /// <summary>拼 PocketNAS 连接 JSON；前提不满足时打日志并返回 null</summary>
+    private string? BuildPocketNasPayload()
+    {
+        // 1. sshd 必须在运行 —— 服务没起来，码里的地址扫了也连不上
+        try
+        {
+            using var sc = new ServiceController("sshd");
+            if (sc.Status != ServiceControllerStatus.Running)
+            {
+                Dispatcher.Invoke(() => AppendLog(
+                    $"sshd 未运行（当前状态 {sc.Status}）。请先「一键配置并启动」，服务跑起来后二维码才生效。\n",
+                    LogColor.Yellow));
+                return null;
+            }
+        }
+        catch (InvalidOperationException)
+        {
+            Dispatcher.Invoke(() => AppendLog(
+                "本机没有 sshd 服务（OpenSSH Server 未安装）。请先「一键配置并启动」。\n", LogColor.Red));
+            return null;
+        }
+
+        // 2. 私钥文件
+        if (!File.Exists(PrivateKeyPath))
+        {
+            Dispatcher.Invoke(() => AppendLog(
+                $"找不到私钥 {PrivateKeyPath}。请先「一键配置并启动」生成并部署密钥。\n", LogColor.Red));
+            return null;
+        }
+        var keyText = File.ReadAllText(PrivateKeyPath).Trim();
+        if (!keyText.Contains("PRIVATE KEY"))
+        {
+            Dispatcher.Invoke(() => AppendLog("私钥文件内容异常（不是 PEM 私钥文本）。\n", LogColor.Red));
+            return null;
+        }
+
+        // 3. 地址：IpSelector 当前选中项，物理/虚拟组网地址都照原样用，不做网段过滤
+        var ip = IpSelector.SelectedItem as string;
+        if (string.IsNullOrWhiteSpace(ip))
+        {
+            Dispatcher.Invoke(() => AppendLog("没有可用的局域网地址，无法生成二维码。\n", LogColor.Red));
+            return null;
+        }
+
+        // 4. 主机指纹：读 sshd 的主机公钥算 SHA256（ed25519 → ecdsa → rsa 依次找）。
+        //    取不到不阻塞，fp 留空，手机首连时手动核对一次即可
+        var fp = GetHostFingerprint();
+        if (fp == null)
+            Dispatcher.Invoke(() => AppendLog(
+                "没能读到主机指纹，二维码不带 fp；手机首次连接时会弹出指纹核对，确认即可。\n", LogColor.Yellow));
+
+        var payload = JsonSerializer.Serialize(new
+        {
+            v = 1,
+            type = "ssh",
+            name = Environment.MachineName,
+            url = $"sftp://{ip}:22/",
+            user = TxtUser.Text,
+            pass = "",
+            fp = fp ?? "",
+            key = keyText,
+        });
+
+        Dispatcher.Invoke(() => AppendLog(
+            $"二维码已生成：{TxtUser.Text}@{ip}:22（{(fp != null ? "含主机指纹" : "不含主机指纹")}，含私钥）\n",
+            LogColor.Green));
+        return payload;
+    }
+
+    /// <summary>ssh-keygen -lf 读 sshd 主机公钥指纹，形如 "SHA256:xxxx"（与手机端算法一致）</summary>
+    private string? GetHostFingerprint()
+    {
+        var programData = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
+        foreach (var algo in new[] { "ed25519", "ecdsa", "rsa" })
+        {
+            var pub = Path.Combine(programData, "ssh", $"ssh_host_{algo}_key.pub");
+            if (!File.Exists(pub)) continue;
+            try
+            {
+                var keygen = FindSshKeygen();
+                if (keygen == null) return null;
+                using var p = Process.Start(new ProcessStartInfo
+                {
+                    FileName = keygen,
+                    Arguments = $"-lf \"{pub}\"",
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    CreateNoWindow = true,
+                });
+                var output = p?.StandardOutput.ReadToEnd();
+                p?.WaitForExit(3000);
+                // 输出形如 "256 SHA256:AbCdEf... comment (ED25519)"
+                var token = output?.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                    .FirstOrDefault(t => t.StartsWith("SHA256:"));
+                if (!string.IsNullOrEmpty(token))
+                    return token;
+            }
+            catch
+            {
+                // 换下一种算法再试
+            }
+        }
+        return null;
+    }
+
+    /// <summary>把 payload 画成二维码显示出来</summary>
+    private void ShowQr(string payload)
+    {
+        using var gen = new QRCodeGenerator();
+        using var data = gen.CreateQrCode(payload, QRCodeGenerator.ECCLevel.M);
+        var png = new PngByteQRCode(data).GetGraphic(6);
+
+        var bmp = new BitmapImage();
+        using (var ms = new MemoryStream(png))
+        {
+            bmp.BeginInit();
+            bmp.CacheOption = BitmapCacheOption.OnLoad;
+            bmp.StreamSource = ms;
+            bmp.EndInit();
+        }
+        bmp.Freeze();
+        QrImage.Source = bmp;
+        QrHolder.Visibility = Visibility.Visible;
+        TxtQrHint.Text = "用 PocketNAS「SSH → 扫码」导入；扫完请点「生成二维码」旁空白处隐藏，避免私钥暴露在屏幕上";
     }
 
     // 线程安全的彩色日志追加
