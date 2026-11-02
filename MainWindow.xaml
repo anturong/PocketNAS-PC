@@ -1,13 +1,14 @@
 <Window x:Class="SshHelper.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="SSH 密钥登录配置助手" Height="600" Width="1050"
+        Title="SSH 密钥登录配置助手" Height="600" Width="1100"
         Background="#0d1117" WindowStartupLocation="CenterScreen"
         ResizeMode="CanMinimize">
 
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="2*"/>
+            <!-- 左边只放按钮和日志，原来 2:1 太空；收窄后右栏能放下更大的二维码 -->
+            <ColumnDefinition Width="1.4*"/>
             <ColumnDefinition Width="1*"/>
         </Grid.ColumnDefinitions>
         <!-- 左侧面板：执行与日志 -->
@@ -98,7 +99,7 @@
                 </StackPanel>
             </Border>
             <!-- 卡片3：二维码（PocketNAS 扫码导入） -->
-            <Border Grid.Row="2" Padding="20">
+            <Border Grid.Row="2" Padding="16">
                 <StackPanel>
                     <Grid Margin="0,0,0,10">
                         <TextBlock Text="📱 PocketNAS 扫码导入" Foreground="#8b949e" FontWeight="Bold" FontSize="12"
@@ -114,8 +115,13 @@
                     </TextBlock>
                     <Border x:Name="QrHolder" Background="White" CornerRadius="8"
                             HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed">
-                        <Image x:Name="QrImage" Stretch="Uniform" MaxWidth="470" MaxHeight="470" Margin="6"
-                               RenderOptions.BitmapScalingMode="NearestNeighbor"/>
+                        <!-- 宽度跟着右栏走，别写死尺寸：右栏只有 400px 左右，写大了会被裁掉一截 -->
+                        <Image x:Name="QrImage" Stretch="Uniform" Margin="6" Cursor="Hand"
+                               Width="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=StackPanel}}"
+                               MaxHeight="400"
+                               RenderOptions.BitmapScalingMode="NearestNeighbor"
+                               ToolTip="点击放大，更好扫"
+                               MouseLeftButtonUp="QrImage_MouseLeftButtonUp"/>
                     </Border>
                     <TextBlock x:Name="TxtQrHint" TextWrapping="Wrap" Foreground="#8b949e" FontSize="10"
                                HorizontalAlignment="Center" Margin="0,8,0,0"
