@@ -92,7 +92,11 @@ public partial class WebDavView : System.Windows.Controls.UserControl
 
     private void UpdateServerLink()
     {
-        var displayHost = (_config.Host == "+" || _config.Host == "*" || _config.Host == "0.0.0.0") ? "localhost" : _config.Host;
+        // 访问地址跟随「连接二维码」里选中的那块网卡，而不是固定 localhost
+        var selectedIp = GetQrIp();
+        var displayHost = !string.IsNullOrWhiteSpace(selectedIp)
+            ? selectedIp
+            : ((_config.Host == "+" || _config.Host == "*" || _config.Host == "0.0.0.0") ? "localhost" : _config.Host);
         if (ChkHttp.IsChecked == true)
         {
             var port = int.TryParse(TxtPort.Text, out var p) ? p : _config.Port;
@@ -115,6 +119,9 @@ public partial class WebDavView : System.Windows.Controls.UserControl
             LnkHttps.Visibility = Visibility.Collapsed;
         }
     }
+
+    /// <summary>切换网卡后同步「访问」地址</summary>
+    private void QrIp_SelectionChanged(object sender, SelectionChangedEventArgs e) => UpdateServerLink();
 
     private void BrowseFolder(object sender, RoutedEventArgs e)
     {

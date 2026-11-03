@@ -52,7 +52,7 @@
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <ComboBox x:Name="QrIpSelector"/>
+                    <ComboBox x:Name="QrIpSelector" SelectionChanged="QrIp_SelectionChanged"/>
                     <Button Grid.Column="1" Content="生成二维码" Click="GenerateQr" Margin="5,0,0,0"/>
                 </Grid>
                 <TextBlock TextWrapping="Wrap" FontSize="10.5"
