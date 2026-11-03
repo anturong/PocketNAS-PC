@@ -80,6 +80,7 @@ public partial class WebDavView : System.Windows.Controls.UserControl
         RefreshQrIps();
         UpdateServerLink();
         Log("配置加载成功。");
+        Log($"配置文件：{WebDAVConfigData.ConfigPath}");
     }
 
     private void RefreshUserList()

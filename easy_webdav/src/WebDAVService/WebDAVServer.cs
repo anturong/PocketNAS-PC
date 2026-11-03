@@ -242,6 +242,7 @@ public class WebDAVServer
         }
         catch (HttpListenerException) { }
         catch (OperationCanceledException) { }
+        catch (ObjectDisposedException) { } // 正常停止时监听器已被释放
     }
 
     private void HealthCheck()

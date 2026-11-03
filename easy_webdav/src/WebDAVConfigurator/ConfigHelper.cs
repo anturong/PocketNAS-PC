@@ -19,7 +19,25 @@ public class UserInfo
 public class WebDAVConfigData
 {
     private static readonly string BasePath = AppDomain.CurrentDomain.BaseDirectory.TrimEnd('\\');
-    private static readonly string ConfigFilePath = Path.Combine(BasePath, "webdav_config.json");
+
+    /// <summary>
+    /// 配置文件位置：服务以自身目录为基准读配置，所以并入 PocketNAS-PC 后
+    /// 必须写到 service 子目录，否则界面保存的配置服务永远读不到。
+    /// </summary>
+    private static readonly string ConfigFilePath = ResolveConfigFilePath();
+
+    private static string ResolveConfigFilePath()
+    {
+        var serviceDir = Path.Combine(BasePath, "service");
+        var dir = File.Exists(Path.Combine(serviceDir, "WebDAVService.exe")) ? serviceDir : BasePath;
+        return Path.Combine(dir, "webdav_config.json");
+    }
+
+    /// <summary>配置文件所在目录：所有相对路径都以它为基准，界面与服务两端保持一致</summary>
+    private static string ConfigDir => Path.GetDirectoryName(ConfigFilePath)!;
+
+    /// <summary>当前使用的配置文件完整路径（用于日志与排查）</summary>
+    public static string ConfigPath => ConfigFilePath;
 
     [JsonPropertyName("host")]
     public string Host { get; set; } = "+";
@@ -34,7 +52,7 @@ public class WebDAVConfigData
     [JsonPropertyName("cert_thumbprint")]
     public string? CertThumbprint { get; set; }
     [JsonPropertyName("root_dir")]
-    public string RootDir { get; set; } = Path.Combine(BasePath, "webdav_share");
+    public string RootDir { get; set; } = "webdav_share";
     [JsonPropertyName("users")]
     public List<UserInfo> Users { get; set; } = new()
     {
@@ -64,14 +82,57 @@ public class WebDAVConfigData
         var json = File.ReadAllText(ConfigFilePath);
         var loaded = JsonSerializer.Deserialize<WebDAVConfigData>(json) ?? new WebDAVConfigData();
         if (!Path.IsPathRooted(loaded.RootDir))
-            loaded.RootDir = Path.Combine(BasePath, loaded.RootDir);
+        {
+            // 相对路径一律相对配置文件所在目录解析，界面与服务两端结果一致
+            loaded.RootDir = Path.GetFullPath(Path.Combine(ConfigDir, loaded.RootDir));
+        }
+        else
+        {
+            // 旧版本把默认共享夹存成了程序目录下的绝对路径，这里收回配置目录
+            var legacy = Path.GetFullPath(Path.Combine(BasePath, "webdav_share")).TrimEnd('\\');
+            if (string.Equals(Path.GetFullPath(loaded.RootDir).TrimEnd('\\'), legacy, StringComparison.OrdinalIgnoreCase))
+                loaded.RootDir = Path.GetFullPath(Path.Combine(ConfigDir, "webdav_share"));
+        }
         return loaded;
     }
 
     public void Save()
     {
-        var json = JsonSerializer.Serialize(this, JsonOpts);
-        File.WriteAllText(ConfigFilePath, json);
+        // 落在配置目录内的共享夹存相对路径，整个程序目录可以整体搬走
+        var absoluteRoot = RootDir;
+        try
+        {
+            if (TryGetRelative(RootDir, ConfigDir, out var relative))
+                RootDir = relative;
+
+            var json = JsonSerializer.Serialize(this, JsonOpts);
+            File.WriteAllText(ConfigFilePath, json);
+        }
+        finally
+        {
+            RootDir = absoluteRoot;
+        }
+    }
+
+    /// <summary>path 位于 baseDir 之内时给出相对路径；本身就是相对路径则原样返回</summary>
+    private static bool TryGetRelative(string path, string baseDir, out string relative)
+    {
+        relative = "";
+        if (string.IsNullOrWhiteSpace(path)) return false;
+
+        if (!Path.IsPathRooted(path))
+        {
+            relative = path;
+            return true;
+        }
+
+        var full = Path.GetFullPath(path).TrimEnd('\\');
+        var root = Path.GetFullPath(baseDir).TrimEnd('\\');
+        if (!full.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        relative = Path.GetRelativePath(root, full);
+        return true;
     }
 
     private static string GenerateRandomPassword()
