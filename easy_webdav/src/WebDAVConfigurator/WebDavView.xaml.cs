@@ -3,6 +3,7 @@ using System.IO;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
+using System.Security.Cryptography;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
@@ -128,6 +129,77 @@ public partial class WebDavView : System.Windows.Controls.UserControl
         }
     }
 
+    // ==================== 密码框：眼睛切换 + 随机强密码 ====================
+
+    /// <summary>当前密码值：掩码态取 PasswordBox，明文态取 TextBox</summary>
+    private string PasswordValue => PwdPass.Visibility == Visibility.Visible
+        ? PwdPass.Password
+        : TxtPassPlain.Text;
+
+    private void SetPassword(string value)
+    {
+        PwdPass.Password = value;
+        TxtPassPlain.Text = value;
+    }
+
+    private void ClearPassword() => SetPassword("");
+
+    private void TogglePassVisibility(object sender, RoutedEventArgs e)
+    {
+        var wasMasked = PwdPass.Visibility == Visibility.Visible;
+
+        if (wasMasked)
+        {
+            TxtPassPlain.Text = PwdPass.Password;
+            PwdPass.Visibility = Visibility.Collapsed;
+            TxtPassPlain.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            PwdPass.Password = TxtPassPlain.Text;
+            TxtPassPlain.Visibility = Visibility.Collapsed;
+            PwdPass.Visibility = Visibility.Visible;
+        }
+
+        // 掩码时显示睁眼（点它看明文），明文时显示划线眼
+        var icon = wasMasked ? Visibility.Collapsed : Visibility.Visible;
+        EyeOpen.Visibility = icon;
+        EyePupil.Visibility = icon;
+        EyeSlash.Visibility = wasMasked ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void GeneratePassword(object sender, RoutedEventArgs e)
+    {
+        // 去掉易混淆字符：0/O、1/l/I
+        const string upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+        const string lower = "abcdefghijkmnopqrstuvwxyz";
+        const string digits = "23456789";
+        const string symbols = "!@#$%^&*-_=+";
+        const int length = 16;
+
+        var chars = new List<char> { PickChar(upper), PickChar(lower), PickChar(digits), PickChar(symbols) };
+        var pool = upper + lower + digits + symbols;
+        while (chars.Count < length)
+            chars.Add(pool[RandomNumberGenerator.GetInt32(pool.Length)]);
+
+        // Fisher-Yates 洗牌：否则前四位永远固定是「大写/小写/数字/符号」
+        for (var i = chars.Count - 1; i > 0; i--)
+        {
+            var j = RandomNumberGenerator.GetInt32(i + 1);
+            (chars[i], chars[j]) = (chars[j], chars[i]);
+        }
+
+        SetPassword(new string(chars.ToArray()));
+
+        // 生成后直接明文展示，方便核对与复制
+        if (PwdPass.Visibility == Visibility.Visible)
+            TogglePassVisibility(this, new RoutedEventArgs());
+
+        Log($"已生成 {length} 位强密码（大小写 + 数字 + 符号）");
+    }
+
+    private static char PickChar(string set) => set[RandomNumberGenerator.GetInt32(set.Length)];
+
     // ==================== 用户管理 ====================
 
     private void OnUserSelect(object sender, SelectionChangedEventArgs e)
@@ -139,7 +211,7 @@ public partial class WebDavView : System.Windows.Controls.UserControl
         if (user != null)
         {
             TxtUser.Text = user.Username;
-            TxtPass.Text = user.Password;
+            SetPassword(user.Password);
             ChkReadOnly.IsChecked = user.ReadOnly;
         }
     }
@@ -147,7 +219,7 @@ public partial class WebDavView : System.Windows.Controls.UserControl
     private void AddUser(object sender, RoutedEventArgs e)
     {
         var username = TxtUser.Text.Trim();
-        var password = TxtPass.Text;
+        var password = PasswordValue;
         if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
         { Alert("用户名和密码不能为空！"); return; }
         if (_config.Users.Any(u => u.Username == username))
@@ -155,7 +227,7 @@ public partial class WebDavView : System.Windows.Controls.UserControl
 
         _config.Users.Add(new UserInfo { Username = username, Password = password, ReadOnly = ChkReadOnly.IsChecked == true });
         RefreshUserList();
-        TxtUser.Clear(); TxtPass.Clear(); ChkReadOnly.IsChecked = false;
+        TxtUser.Clear(); ClearPassword(); ChkReadOnly.IsChecked = false;
         Log($"用户 {username} 已添加（未保存）", LogLevel.Warn);
     }
 
@@ -164,7 +236,7 @@ public partial class WebDavView : System.Windows.Controls.UserControl
         if (LstUsers.SelectedIndex < 0) { Alert("请先选择一个用户。"); return; }
         var text = LstUsers.SelectedItem?.ToString() ?? "";
         var oldName = text.Contains('[') ? text.Split('[')[0].Trim() : text.Trim();
-        var password = TxtPass.Text;
+        var password = PasswordValue;
         if (string.IsNullOrEmpty(password)) { Alert("密码不能为空！"); return; }
 
         var user = _config.Users.FirstOrDefault(u => u.Username == oldName);

@@ -62,6 +62,9 @@ PocketNAS-PC.exe --shot out.png --module=ssh
 
 **二维码**：两个模块都有，但都只出现在弹窗里，主界面不留含凭据的图像。
 
+**密码**：WebDAV 用户密码默认掩码显示，右侧眼睛按钮切换明文/掩码，旁边「随机」按钮生成
+16 位强密码（大小写 + 数字 + 符号，排除 0/O、1/l/I 等易混字符，Fisher-Yates 洗牌避免位置规律）。
+
 **部署注意**：WebDAV 的「安装服务」会在程序目录下查找 `WebDAVService.exe`，
 发布时需把它一并放到 `PocketNAS-PC.exe` 同目录。
 
@@ -94,6 +97,5 @@ git push -u origin master
 
 ## 已知待办
 
-- WebDAV 用户密码当前以明文显示在输入框，建议换 `PasswordBox`。
 - 状态胶囊固定显示「就绪」，尚未接真实的 sshd / WebDAV 服务状态。
 - 原 `easy_webdav/WebDAVService.sln` 仍存在，其中 WebDAVConfigurator 已变为类库。

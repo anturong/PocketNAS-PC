@@ -86,7 +86,33 @@
                 <TextBox Grid.Row="3" x:Name="TxtUser" Margin="0,0,0,8"/>
 
                 <TextBlock Grid.Row="4" Text="密码" Margin="0,0,0,4"/>
-                <TextBox Grid.Row="5" x:Name="TxtPass" Margin="0,0,0,8"/>
+                <Grid Grid.Row="5" Margin="0,0,0,8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- 掩码态 -->
+                    <PasswordBox x:Name="PwdPass" Grid.Column="0"/>
+                    <!-- 明文态（点眼睛后切换） -->
+                    <TextBox x:Name="TxtPassPlain" Grid.Column="0" Visibility="Collapsed"/>
+
+                    <Button Grid.Column="1" x:Name="BtnTogglePass" Click="TogglePassVisibility"
+                            Margin="4,0,0,0" Padding="8,4" ToolTip="显示 / 隐藏密码">
+                        <Grid Width="18" Height="14">
+                            <Path x:Name="EyeOpen" Stroke="{StaticResource Fg.Text}" StrokeThickness="1.4"
+                                  Fill="Transparent" Data="M1,7 C4,2 14,2 17,7 C14,12 4,12 1,7 Z"/>
+                            <Ellipse x:Name="EyePupil" Width="5" Height="5" Fill="{StaticResource Fg.Text}"
+                                     HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <Path x:Name="EyeSlash" Visibility="Collapsed" Stroke="{StaticResource Accent.Red}"
+                                  StrokeThickness="1.6" Data="M2,12 L16,2"/>
+                        </Grid>
+                    </Button>
+
+                    <Button Grid.Column="2" Content="随机" Click="GeneratePassword"
+                            Margin="4,0,0,0" Padding="7,4" ToolTip="生成 16 位强密码"/>
+                </Grid>
 
                 <CheckBox Grid.Row="6" x:Name="ChkReadOnly" Content="只读（不可删除/上传）"/>
 
