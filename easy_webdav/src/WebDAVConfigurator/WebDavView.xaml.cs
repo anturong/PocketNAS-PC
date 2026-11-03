@@ -25,6 +25,26 @@ namespace WebDAVConfigurator;
 public partial class WebDavView : System.Windows.Controls.UserControl
 {
     private readonly string _baseDir = AppDomain.CurrentDomain.BaseDirectory.TrimEnd('\\');
+    private string? _serviceDir;
+
+    /// <summary>
+    /// 服务程序所在目录：独立运行时与主程序同目录；并入 PocketNAS-PC 后在 service 子目录下。
+    /// </summary>
+    private string? ServiceDir => _serviceDir ??= ResolveServiceDir();
+
+    private static string? ResolveServiceDir()
+    {
+        foreach (var dir in new[]
+                 {
+                     Path.Combine(AppContext.BaseDirectory, "service"),
+                     AppContext.BaseDirectory,
+                 })
+        {
+            if (File.Exists(Path.Combine(dir, "WebDAVService.exe")))
+                return dir.TrimEnd('\\');
+        }
+        return null;
+    }
     private WebDAVConfigData _config = null!;
     private Window? _qrWindow;
 
@@ -315,7 +335,7 @@ public partial class WebDavView : System.Windows.Controls.UserControl
                 var helper = new ServiceHelper();
                 switch (action)
                 {
-                    case "--install": helper.InstallService(_baseDir); break;
+                    case "--install": helper.InstallService(ServiceDir ?? _baseDir); break;
                     case "--uninstall": helper.UninstallService(); break;
                     case "--restart": helper.RestartService(); break;
                 }
@@ -324,7 +344,7 @@ public partial class WebDavView : System.Windows.Controls.UserControl
             catch (Exception ex) { Log($"操作失败: {ex.Message}", LogLevel.Error); return false; }
         }
 
-        var arg = action == "--install" ? $"--install \"{_baseDir}\"" : action;
+        var arg = action == "--install" ? $"--install \"{ServiceDir ?? _baseDir}\"" : action;
         return Program.RelaunchAsAdmin(arg);
     }
 
@@ -336,8 +356,16 @@ public partial class WebDavView : System.Windows.Controls.UserControl
             : MessageBox.Show(owner, "一键安装/重装 WebDAV 服务？", "确认", MessageBoxButton.YesNo);
         if (confirm != MessageBoxResult.Yes) return;
 
-        var exePath = Path.Combine(_baseDir, "WebDAVService.exe");
-        if (!File.Exists(exePath)) { Alert($"未找到 WebDAVService.exe:\n{exePath}", "错误"); return; }
+        var serviceDir = ServiceDir;
+        if (serviceDir == null)
+        {
+            var searched = string.Join("\n", Path.Combine(AppContext.BaseDirectory, "service"),
+                AppContext.BaseDirectory);
+            Log("未找到 WebDAVService.exe，无法安装服务。", LogLevel.Error);
+            Alert($"未找到 WebDAVService.exe。\n已查找：\n{searched}\n\n" +
+                  "请确认发布时一并输出了 service 目录。", "错误");
+            return;
+        }
 
         SaveConfig(this, new RoutedEventArgs());
         Log("正在安装服务（会弹出 UAC 确认）...", LogLevel.Warn);

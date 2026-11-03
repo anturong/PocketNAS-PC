@@ -18,4 +18,19 @@
     <ProjectReference Include="..\..\SshHelper\SshHelper.csproj" />
   </ItemGroup>
 
+  <!-- 把 WebDAV 服务发布到输出目录的 service 子目录：安装服务时从这里取 exe -->
+  <Target Name="PublishWebDavService" AfterTargets="Build"
+          Condition="'$(SkipWebDavService)' != 'true'"
+          Inputs="$(MSBuildThisFileDirectory)..\..\easy_webdav\src\WebDAVService\**\*.cs;$(MSBuildThisFileDirectory)..\..\easy_webdav\src\WebDAVService\WebDAVService.csproj"
+          Outputs="$(OutDir)service\WebDAVService.exe">
+    <Message Importance="high" Text="发布 WebDAV 服务 → $(OutDir)service" />
+    <PropertyGroup>
+      <!-- 必须转成绝对路径：相对 PublishDir 会在子项目里解析，产物会落到 WebDAVService\bin 下 -->
+      <WebDavSvcPublishDir>$([System.IO.Path]::GetFullPath('$(OutDir)service'))\</WebDavSvcPublishDir>
+    </PropertyGroup>
+    <MSBuild Projects="$(MSBuildThisFileDirectory)..\..\easy_webdav\src\WebDAVService\WebDAVService.csproj"
+             Targets="Publish"
+             Properties="Configuration=$(Configuration);PublishDir=$(WebDavSvcPublishDir)" />
+  </Target>
+
 </Project>

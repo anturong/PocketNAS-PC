@@ -62,11 +62,15 @@ PocketNAS-PC.exe --shot out.png --module=ssh
 
 **二维码**：两个模块都有，但都只出现在弹窗里，主界面不留含凭据的图像。
 
+**权限**：外壳 manifest 为 `requireAdministrator`，启动即请求 UAC。两个模块都要改系统状态
+（配置 sshd、写 `administrators_authorized_keys`、安装 Windows 服务），普通权限下会直接失败。
+
+**部署**：构建时会自动把 WebDAV 服务 `dotnet publish` 到输出目录的 `service\` 子目录，
+「安装服务」从那里取 `WebDAVService.exe`（单文件自包含，约 70MB）。
+查找顺序为 `service\` → 程序根目录，两者都没有时会弹窗列出已查找路径。
+
 **密码**：WebDAV 用户密码默认掩码显示，右侧眼睛按钮切换明文/掩码，旁边「随机」按钮生成
 16 位强密码（大小写 + 数字 + 符号，排除 0/O、1/l/I 等易混字符，Fisher-Yates 洗牌避免位置规律）。
-
-**部署注意**：WebDAV 的「安装服务」会在程序目录下查找 `WebDAVService.exe`，
-发布时需把它一并放到 `PocketNAS-PC.exe` 同目录。
 
 ## 与上游同步
 
