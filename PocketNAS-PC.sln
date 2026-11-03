@@ -1,0 +1,43 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "easy_webdav", "easy_webdav", "{82178A10-A322-47F0-9620-7E7C45B8D2B0}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{4E95823E-B6C3-4980-BBFB-CC8041E4425C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebDAVService", "easy_webdav\src\WebDAVService\WebDAVService.csproj", "{A580270C-0913-4EF4-9408-EB3D19ED4A73}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebDAVConfigurator", "easy_webdav\src\WebDAVConfigurator\WebDAVConfigurator.csproj", "{63FCF90B-9AA6-4FA9-83B8-3BCD1E37C638}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SshHelper", "SshHelper\SshHelper.csproj", "{229E8DCF-4A47-4C25-BF63-B8C2A1877978}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{A580270C-0913-4EF4-9408-EB3D19ED4A73}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A580270C-0913-4EF4-9408-EB3D19ED4A73}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A580270C-0913-4EF4-9408-EB3D19ED4A73}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A580270C-0913-4EF4-9408-EB3D19ED4A73}.Release|Any CPU.Build.0 = Release|Any CPU
+		{63FCF90B-9AA6-4FA9-83B8-3BCD1E37C638}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{63FCF90B-9AA6-4FA9-83B8-3BCD1E37C638}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{63FCF90B-9AA6-4FA9-83B8-3BCD1E37C638}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{63FCF90B-9AA6-4FA9-83B8-3BCD1E37C638}.Release|Any CPU.Build.0 = Release|Any CPU
+		{229E8DCF-4A47-4C25-BF63-B8C2A1877978}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{229E8DCF-4A47-4C25-BF63-B8C2A1877978}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{229E8DCF-4A47-4C25-BF63-B8C2A1877978}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{229E8DCF-4A47-4C25-BF63-B8C2A1877978}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{4E95823E-B6C3-4980-BBFB-CC8041E4425C} = {82178A10-A322-47F0-9620-7E7C45B8D2B0}
+		{A580270C-0913-4EF4-9408-EB3D19ED4A73} = {4E95823E-B6C3-4980-BBFB-CC8041E4425C}
+		{63FCF90B-9AA6-4FA9-83B8-3BCD1E37C638} = {4E95823E-B6C3-4980-BBFB-CC8041E4425C}
+	EndGlobalSection
+EndGlobal
