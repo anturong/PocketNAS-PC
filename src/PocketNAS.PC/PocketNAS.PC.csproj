@@ -12,4 +12,9 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\PocketNAS.Shared\PocketNAS.Shared.csproj" />
+    <ProjectReference Include="..\..\easy_webdav\src\WebDAVConfigurator\WebDAVConfigurator.csproj" />
+  </ItemGroup>
+
 </Project>

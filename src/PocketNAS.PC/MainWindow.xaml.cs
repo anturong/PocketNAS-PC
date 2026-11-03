@@ -5,8 +5,9 @@ using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using PocketNAS.PC.Services;
+using PocketNAS.Shared;
 using PocketNAS.PC.Views;
+using WebDAVConfigurator;
 
 namespace PocketNAS.PC;
 
@@ -104,8 +105,7 @@ public partial class MainWindow : Window
             Dot = hint, TitleColor = hint, TagText = "预留", TagVisibility = Visibility.Visible
         });
 
-        _views["webdav"] = new ModulePlaceholder("WebDAV", "模块视图待迁入",
-            "下一步把 easy_webdav 的「基本设置 / 用户管理 / 服务控制」三张卡片搬到这里。");
+        _views["webdav"] = new WebDavView();
         _views["ssh"] = new ModulePlaceholder("SSH", "模块视图待迁入",
             "再下一步把 SshHelper 的「连接信息 / 私钥管理 / 扫码导入」三张卡片搬到这里。");
         _views["ftps"] = new ModulePlaceholder("FTPS", "预留模块",

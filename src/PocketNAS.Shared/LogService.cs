@@ -1,4 +1,4 @@
-namespace PocketNAS.PC.Services;
+namespace PocketNAS.Shared;
 
 public enum LogLevel
 {
@@ -21,6 +21,9 @@ public static class LogService
     public static void Success(string module, string message) => Emit(module, message, LogLevel.Success);
     public static void Warn(string module, string message) => Emit(module, message, LogLevel.Warn);
     public static void Error(string module, string message) => Emit(module, message, LogLevel.Error);
+
+    public static void Write(string module, string message, LogLevel level)
+        => Emit(module, message, level);
 
     private static void Emit(string module, string message, LogLevel level)
         => Written?.Invoke(new LogEntry(DateTime.Now, module, message, level));

@@ -1,24 +1,19 @@
 using System.Diagnostics;
 using System.IO;
 using System.Security.Principal;
-using WebDAVConfigurator;
 
-static class Program
+namespace WebDAVConfigurator;
+
+/// <summary>
+/// 服务安装/卸载/重启的提权通道。
+/// 独立运行时装在 WebDAVConfigurator.exe 里；并入 PocketNAS-PC 后由外壳转发同名参数。
+/// </summary>
+public static class Program
 {
-    [STAThread]
-    static void Main(string[] args)
-    {
-        if (args.Length > 0 && args[0].StartsWith("--"))
-        {
-            RunElevatedCommand(args[0], args.Skip(1).ToArray());
-            return;
-        }
+    /// <summary>提权时启动的可执行文件。为空表示重启当前进程（独立运行时的行为）。</summary>
+    public static string? ElevationHelperExe { get; set; }
 
-        var app = new System.Windows.Application();
-        app.Run(new MainWindow());
-    }
-
-    private static void RunElevatedCommand(string command, string[] extraArgs)
+    public static void RunElevatedCommand(string command, string[] extraArgs)
     {
         var helper = new ServiceHelper();
         try
@@ -59,7 +54,7 @@ static class Program
     {
         try
         {
-            var exe = Process.GetCurrentProcess().MainModule?.FileName;
+            var exe = ElevationHelperExe ?? Process.GetCurrentProcess().MainModule?.FileName;
             if (exe == null) return false;
             var startInfo = new ProcessStartInfo
             {

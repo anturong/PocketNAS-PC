@@ -1,6 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
-using PocketNAS.PC.Services;
+using PocketNAS.Shared;
 
 namespace PocketNAS.PC.Views;
 
