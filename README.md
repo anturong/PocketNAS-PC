@@ -72,6 +72,43 @@ PocketNAS-PC.exe --shot out.png --module=ssh
 **密码**：WebDAV 用户密码默认掩码显示，右侧眼睛按钮切换明文/掩码，旁边「随机」按钮生成
 16 位强密码（大小写 + 数字 + 符号，排除 0/O、1/l/I 等易混字符，Fisher-Yates 洗牌避免位置规律）。
 
+## 提交约定
+
+这个项目按功能持续迭代，**一个功能一个 commit**，不做「攒一批一起提交」。
+
+**提交粒度**
+
+- 一个 commit 只做一件事。功能 + 顺带修的文档可以合并，两个独立功能不行
+- 每个 commit 都应该能独立编译通过
+- 写文档、改计划单独提交（`docs:`），不要混进功能提交
+
+**提交信息**
+
+```
+<类型>(<模块>): <做了什么>
+
+- 关键改动点
+- 关键改动点
+```
+
+| 类型 | 用于 |
+|---|---|
+| `feat` | 新功能 |
+| `fix` | 修 bug |
+| `refactor` | 不改行为的结构调整 |
+| `build` | 构建、依赖、工程文件 |
+| `docs` | 文档、计划、README |
+| `chore` | 杂项（并入上游、清理） |
+
+模块 scope 用 `shell` / `webdav` / `ssh` / `ftps` / `dlna` / `shared`，跨模块可省略。
+
+**提交前**
+
+```bash
+dotnet build PocketNAS-PC.sln -c Release --nologo   # 必须 0 错误
+git status                                          # 确认没有误加的产物
+```
+
 ## 与上游同步
 
 ```bash
