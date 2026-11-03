@@ -1,9 +1,9 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
-    <Version>1.2.2</Version>
+    <Version>1.2.4</Version>
     <Nullable>enable</Nullable>
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
@@ -16,6 +16,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="QRCoder" Version="1.6.0" />
     <PackageReference Include="System.ServiceProcess.ServiceController" Version="10.0.8" />
   </ItemGroup>
 

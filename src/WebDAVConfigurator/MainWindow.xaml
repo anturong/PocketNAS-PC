@@ -75,6 +75,22 @@
                                 Background="#21262d" Foreground="#e6edf3" BorderBrush="#30363d"
                                 Margin="5,0,0,0" Padding="10,5"/>
                     </Grid>
+
+                    <TextBlock Text="连接二维码" Margin="0,5,0,5"/>
+                    <Grid Margin="0,0,0,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <ComboBox x:Name="QrIpSelector"
+                                  Background="#0d1117" Foreground="#58a6ff" BorderBrush="#30363d"
+                                  Padding="4,2"/>
+                        <Button Grid.Column="1" Content="生成二维码" Click="GenerateQr"
+                                Background="#21262d" Foreground="#e6edf3" BorderBrush="#30363d"
+                                Margin="5,0,0,0" Padding="10,5"/>
+                    </Grid>
+                    <TextBlock TextWrapping="Wrap" FontSize="11" Margin="0,0,0,0"
+                               Text="需启用 HTTPS 且服务运行中。扫码用 PocketNAS 添加 WebDAV，账号密码取自用户列表当前选中项。"/>
                 </StackPanel>
             </Border>
 
