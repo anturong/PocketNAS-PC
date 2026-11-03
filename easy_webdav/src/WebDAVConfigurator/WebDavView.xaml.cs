@@ -424,52 +424,17 @@ public partial class WebDavView : System.Windows.Controls.UserControl
 
     // ==================== 连接二维码 ====================
 
-    /// <summary>枚举本机可用的局域网 IPv4（跳过回环、APIPA 和未启用网卡）</summary>
+    /// <summary>枚举本机可用的局域网 IPv4（规则见 LanAddresses，与 SSH 模块共用）</summary>
     private void RefreshQrIps()
     {
-        // 虚拟网卡（VMware/Hyper-V 等）往往没有默认网关，手机访问不到；
-        // 按「有网关 > 以太网/WLAN > 其他」排序，默认选中第一项。
-        var found = new List<(string Ip, string Nic, bool HasGateway, int Rank)>();
-        try
-        {
-            foreach (var nic in NetworkInterface.GetAllNetworkInterfaces())
-            {
-                if (nic.OperationalStatus != OperationalStatus.Up) continue;
-                if (nic.NetworkInterfaceType == NetworkInterfaceType.Loopback) continue;
-                var props = nic.GetIPProperties();
-                var hasGateway = props.GatewayAddresses.Any(g =>
-                    g.Address != null && g.Address.AddressFamily == AddressFamily.InterNetwork &&
-                    !g.Address.Equals(IPAddress.Any));
-                var rank = nic.NetworkInterfaceType switch
-                {
-                    NetworkInterfaceType.Ethernet => 0,
-                    NetworkInterfaceType.Wireless80211 => 1,
-                    _ => 2,
-                };
-                foreach (var ua in props.UnicastAddresses)
-                {
-                    if (ua.Address.AddressFamily != AddressFamily.InterNetwork) continue;
-                    var ip = ua.Address.ToString();
-                    if (ip.StartsWith("127.") || ip.StartsWith("169.254.")) continue;
-                    if (found.Any(f => f.Ip == ip)) continue;
-                    found.Add((ip, nic.Name, hasGateway, rank));
-                }
-            }
-        }
-        catch { }
-
-        var ordered = found
-            .OrderByDescending(f => f.HasGateway)
-            .ThenBy(f => f.Rank)
-            .ThenBy(f => f.Nic)
-            .ToList();
+        var ordered = LanAddresses.Get();
 
         var previous = GetQrIp();
         QrIpSelector.Items.Clear();
         foreach (var f in ordered)
             QrIpSelector.Items.Add(new ComboBoxItem
             {
-                Content = $"{f.Ip}  ·  {f.Nic}",
+                Content = f.ToString(),
                 Tag = f.Ip,
             });
         if (ordered.Count > 0)

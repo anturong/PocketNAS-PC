@@ -850,38 +850,36 @@ public partial class SshView : System.Windows.Controls.UserControl
         }
     }
 
-    private List<IPAddress> GetAllLocalIPs()
-    {
-        try
-        {
-            var entry = Dns.GetHostEntry(Dns.GetHostName());
-            return entry.AddressList.Where(ip => ip.AddressFamily == AddressFamily.InterNetwork && !IPAddress.IsLoopback(ip)).ToList();
-        }
-        catch
-        {
-            return [];
-        }
-    }
-
     private void LoadLocalIPs()
     {
-        var ips = GetAllLocalIPs();
+        // 与 WebDAV 模块共用同一套枚举与排序（PocketNAS.Shared.LanAddresses）
+        var addresses = LanAddresses.Get();
         IpSelector.Items.Clear();
-        foreach (var ip in ips)
-            IpSelector.Items.Add(ip.ToString());
+        foreach (var address in addresses)
+            IpSelector.Items.Add(new ComboBoxItem { Content = address.ToString(), Tag = address.Ip });
         if (IpSelector.Items.Count > 0)
             IpSelector.SelectedIndex = 0;
     }
 
+    /// <summary>当前选中的 IP：下拉文本带网卡名，真正取值走 Tag</summary>
+    private string GetSelectedIp() => IpSelector.SelectedItem switch
+    {
+        ComboBoxItem { Tag: string ip } => ip,
+        string ip => ip,
+        _ => "",
+    };
+
     private void IpSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (IpSelector.SelectedItem is string ip)
+        var ip = GetSelectedIp();
+        if (ip.Length > 0)
             AppendLog($"已选择局域网地址: {ip}\n", LogColor.Cyan);
     }
 
     private void CopySelectedIp(object sender, MouseButtonEventArgs e)
     {
-        if (IpSelector.SelectedItem is string ip)
+        var ip = GetSelectedIp();
+        if (ip.Length > 0)
         {
             if (Win32ClipboardSetText(ip))
                 AppendLog($"已复制 IP: {ip}\n", LogColor.Cyan);
@@ -904,7 +902,7 @@ public partial class SshView : System.Windows.Controls.UserControl
         {
             // UI 控件的值必须在 UI 线程先取好再进后台线程（bb581d5 修过的同类坑，别再踩）
             var user = TxtUser.Text;
-            var ip = IpSelector.SelectedItem as string;
+            var ip = GetSelectedIp();
             var payload = await Task.Run(() => BuildPocketNasPayload(user, ip));
             if (payload != null)
                 ShowQr(payload);
