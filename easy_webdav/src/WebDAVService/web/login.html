@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{APP_NAME}} - 登录</title>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+<style>
+:root{--bg0:#08090f;--bg1:#0e1019;--bg2:#151825;--bg3:#1c2035;--bd:#2a3050;--t1:#e8ecf8;--t2:#8a94b8;--t3:#525e80;--ac:#00d4aa;--acd:rgba(0,212,170,.1);--dg:#ff4757;--r:8px;--rl:14px;--sh:0 10px 40px rgba(0,0,0,.6)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg0);color:var(--t1);min-height:100vh;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
+.bg{position:fixed;inset:0;background:radial-gradient(ellipse 70% 50% at 25% 25%,rgba(0,212,170,.07)0%,transparent 60%),radial-gradient(ellipse 50% 60% at 80% 75%,rgba(76,201,240,.05)0%,transparent 60%),var(--bg0)}
+.grid{position:fixed;inset:0;background-image:linear-gradient(var(--bd) 1px,transparent 1px),linear-gradient(90deg,var(--bd) 1px,transparent 1px);background-size:60px 60px;opacity:.1;mask-image:radial-gradient(ellipse 70% 70% at center,black,transparent)}
+.card{position:relative;z-index:2;background:var(--bg2);border:1px solid var(--bd);border-radius:var(--rl);padding:36px 28px;width:420px;max-width:92vw;box-shadow:var(--sh);animation:slideUp .5s ease}
+@keyframes slideUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+.logo{width:52px;height:52px;background:linear-gradient(135deg,var(--ac),#4cc9f0);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:22px;color:#080a0f;margin-bottom:20px;margin-left:auto;margin-right:auto}
+h1{text-align:center;font-size:22px;font-weight:700;margin-bottom:4px}
+.sub{text-align:center;color:var(--t2);font-size:13px;margin-bottom:24px}
+.card input{width:100%;background:var(--bg1);border:1px solid var(--bd);border-radius:var(--r);padding:11px 14px;color:var(--t1);font-family:inherit;font-size:15px;outline:none;transition:.2s ease;margin-bottom:12px}
+.card input:focus{border-color:var(--ac);box-shadow:0 0 0 3px var(--acd)}
+.card button{width:100%;padding:12px;background:var(--ac);color:#080a0f;border:none;border-radius:var(--r);font-size:15px;font-weight:600;cursor:pointer;transition:opacity .2s;font-family:inherit}
+.card button:hover{opacity:.9}
+.error{background:rgba(255,71,87,.12);color:var(--dg);padding:10px 14px;border-radius:8px;margin-bottom:16px;text-align:center;font-size:14px}
+@media(max-width:480px){
+    .card{padding:24px 18px}
+    .card input{padding:13px 14px;font-size:16px}
+    .card button{padding:14px;font-size:16px}
+    .logo{width:46px;height:46px;font-size:19px;margin-bottom:16px}
+    h1{font-size:20px}
+}
+</style>
+</head>
+<body>
+<div class="bg"></div>
+<div class="grid"></div>
+<div class="card">
+<div class="logo"><i class="fas fa-folder-tree"></i></div>
+<h1>{{APP_NAME}}</h1>
+<p class="sub">WebDAV 文件共享服务</p>
+{{ERROR_BLOCK}}
+<form method="post">
+<input type="text" name="username" placeholder="用户名" required autofocus>
+<input type="password" name="password" placeholder="密码" required>
+<button type="submit"><i class="fas fa-right-to-bracket"></i> 登 录</button>
+</form>
+</div>
+</body>
+</html>

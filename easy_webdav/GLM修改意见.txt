@@ -1,0 +1,473 @@
+大兄弟，你这套 WebDAV 的后端逻辑写得非常硬核且完善（服务安装、UAC提权、防火墙放行、证书绑定都考虑到了），但原生的 **WinForms (Windows 窗体)** 确实在 UI 颜值上有先天局限，想做个现代深色主题非常费劲。
+要让界面“变漂亮”，最彻底的方法是将前端从 **WinForms 升级为 WPF**。你的后端代码（`ServiceHelper`, `FirewallHelper`, `ConfigHelper` 等）可以**一字不改**直接复用！我们只需要重写 UI 层即可。
+我帮你把界面用 WPF 重写了，完美复刻之前的深色终端风格，同时保留了你所有的业务逻辑。
+---
+### 第一步：修改项目文件
+打开你的 `WebDAVConfigurator.csproj`，把 WinForms 的配置改成 WPF：
+```xml
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <!-- 删掉 UseWindowsForms，改成 UseWPF -->
+    <UseWPF>true</UseWPF>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="System.ServiceProcess.ServiceController" Version="10.0.8" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\WebDAVService\AppInfo.cs" Link="AppInfo.cs" />
+  </ItemGroup>
+</Project>
+```
+---
+### 第二步：修改启动入口 (Program.cs)
+WPF 的启动方式和 WinForms 略有不同，替换你的 `Program.cs`：
+```csharp
+using System.Diagnostics;
+using System.Security.Principal;
+using WebDAVConfigurator;
+static class Program
+{
+    [STAThread]
+    static void Main(string[] args)
+    {
+        if (args.Length > 0 && args[0].StartsWith("--"))
+        {
+            RunElevatedCommand(args[0], args.Skip(1).ToArray());
+            return;
+        }
+        // WPF 启动方式
+        var app = new System.Windows.Application();
+        app.Run(new MainWindow());
+    }
+    private static void RunElevatedCommand(string command, string[] extraArgs)
+    {
+        var helper = new ServiceHelper();
+        try
+        {
+            switch (command)
+            {
+                case "--install":
+                    var baseDir = extraArgs.Length > 0 ? extraArgs[0] : AppDomain.CurrentDomain.BaseDirectory.TrimEnd('\\');
+                    helper.InstallService(baseDir);
+                    break;
+                case "--uninstall":
+                    helper.UninstallService();
+                    break;
+                case "--restart":
+                    helper.RestartService();
+                    break;
+            }
+            Environment.ExitCode = 0;
+        }
+        catch (Exception ex)
+        {
+            File.WriteAllText(
+                Path.Combine(Path.GetTempPath(), "webdav_elevated_error.log"),
+                $"[{DateTime.Now}] {command} 失败: {ex}\n");
+            Environment.ExitCode = 1;
+        }
+    }
+    public static bool IsRunningAsAdmin()
+    {
+        using var identity = System.Security.Principal.WindowsIdentity.GetCurrent();
+        return new WindowsPrincipal(identity).IsInRole(WindowsBuiltInRole.Administrator);
+    }
+    public static bool RelaunchAsAdmin(string arguments)
+    {
+        try
+        {
+            var exe = Process.GetCurrentProcess().MainModule?.FileName;
+            if (exe == null) return false;
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = exe,
+                Arguments = arguments,
+                UseShellExecute = true,
+                Verb = "runas",
+                WindowStyle = ProcessWindowStyle.Hidden
+            };
+            var process = Process.Start(startInfo);
+            if (process != null)
+            {
+                process.WaitForExit();
+                return process.ExitCode == 0;
+            }
+            return false;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+}
+```
+---
+### 第三步：创建炫酷的 WPF 界面
+在你的项目里**删掉原来的 `MainForm.cs`**，添加一个新的 WPF 窗口：右键项目 -> 添加 -> 窗口 (WPF) -> 命名为 `MainWindow.xaml`。
+#### 1. 界面排版 (MainWindow.xaml)
+将以下代码完全替换进 `MainWindow.xaml`，这包含了深色主题的卡片式布局和终端风格的日志：
+```xml
+<Window x:Class="WebDAVConfigurator.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="{Binding AppTitle}" Height="650" Width="1100"
+        Background="#0d1117" WindowStartupLocation="CenterScreen"
+        ResizeMode="CanMinimize">
+    <Window.Resources>
+        <!-- 全局深色输入框样式 -->
+        <Style TargetType="TextBox">
+            <Setter Property="Background" Value="#0d1117"/>
+            <Setter Property="Foreground" Value="#e6edf3"/>
+            <Setter Property="BorderBrush" Value="#30363d"/>
+            <Setter Property="Padding" Value="6"/>
+            <Setter Property="FontFamily" Value="Consolas"/>
+        </Style>
+        <!-- 全局深色复选框样式 -->
+        <Style TargetType="CheckBox">
+            <Setter Property="Foreground" Value="#e6edf3"/>
+            <Setter Property="Margin" Value="0,5"/>
+        </Style>
+        <!-- 全局浅色文字样式 -->
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#8b949e"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Margin" Value="0,0,10,0"/>
+        </Style>
+    </Window.Resources>
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="2.2*"/>
+            <ColumnDefinition Width="1*"/>
+        </Grid.ColumnDefinitions>
+        <!-- ===== 左侧：终端日志区 ===== -->
+        <Grid Grid.Column="0" Background="#010409" Margin="10">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <TextBlock Grid.Row="0" Text="📋 操作日志" Foreground="#8b949e" FontWeight="Bold" FontSize="14" Margin="5"/>
+            
+            <RichTextBox Grid.Row="1" x:Name="LogConsole" 
+                         Background="Transparent" Foreground="#e6edf3" 
+                         BorderThickness="0" IsReadOnly="True" 
+                         FontFamily="Consolas" FontSize="13" 
+                         VerticalScrollBarVisibility="Auto" Margin="5">
+                <FlowDocument/>
+            </RichTextBox>
+        </Grid>
+        <!-- ===== 右侧：控制面板 ===== -->
+        <ScrollViewer Grid.Column="1" Margin="0,10,10,10">
+            <StackPanel>
+                
+                <!-- 卡片1：基本设置 -->
+                <Border Background="#161b22" CornerRadius="8" Padding="15" Margin="0,0,0,10">
+                    <StackPanel>
+                        <TextBlock Text="⚙️ 基本设置" Foreground="#58a6ff" FontWeight="Bold" FontSize="13" Margin="0,0,0,15"/>
+                        
+                        <TextBlock Text="监听端口" Margin="0,0,0,5"/>
+                        <TextBox x:Name="TxtPort" Margin="0,0,0,15"/>
+                        <TextBlock Text="共享目录" Margin="0,0,0,5"/>
+                        <Grid Margin="0,0,0,15">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox x:Name="TxtRootDir"/>
+                            <Button Grid.Column="1" Content="浏览..." Click="BrowseFolder" 
+                                    Background="#21262d" Foreground="#e6edf3" BorderBrush="#30363d"
+                                    Margin="5,0,0,0" Padding="10,5"/>
+                        </Grid>
+                        <CheckBox x:Name="ChkHttps" Content="启用 HTTPS (自签名证书)" Checked="ToggleHttps" Unchecked="ToggleHttps"/>
+                        <Grid Margin="0,10,0,0" x:Name="HttpsPanel" IsEnabled="False">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="HTTPS 端口:"/>
+                            <TextBox x:Name="TxtHttpsPort" Grid.Column="1"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+                <!-- 卡片2：用户管理 -->
+                <Border Background="#161b22" CornerRadius="8" Padding="15" Margin="0,0,0,10">
+                    <StackPanel>
+                        <TextBlock Text="👥 用户管理" Foreground="#58a6ff" FontWeight="Bold" FontSize="13" Margin="0,0,0,15"/>
+                        <ListBox x:Name="LstUsers" Height="100" Background="#0d1117" Foreground="#e6edf3" 
+                                 BorderBrush="#30363d" SelectionChanged="OnUserSelect" Margin="0,0,0,10"/>
+                        <TextBlock Text="用户名"/>
+                        <TextBox x:Name="TxtUser" Margin="0,0,0,10"/>
+                        <TextBlock Text="密码"/>
+                        <TextBox x:Name="TxtPass" Margin="0,0,0,10"/>
+                        <CheckBox x:Name="ChkReadOnly" Content="设为只读 (不可删除/上传)"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,15,0,0" HorizontalAlignment="Center">
+                            <Button Content="添加" Click="AddUser" Background="#3fb950" Foreground="#0d1117" FontWeight="Bold" Width="60" Margin="0,0,5,0"/>
+                            <Button Content="更新" Click="UpdateUser" Background="#58a6ff" Foreground="#0d1117" FontWeight="Bold" Width="60" Margin="0,0,5,0"/>
+                            <Button Content="删除" Click="DeleteUser" Background="#f85149" Foreground="#0d1117" FontWeight="Bold" Width="60"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+                <!-- 卡片3：服务控制 -->
+                <Border Background="#161b22" CornerRadius="8" Padding="15">
+                    <StackPanel>
+                        <TextBlock Text="🚀 服务控制" Foreground="#58a6ff" FontWeight="Bold" FontSize="13" Margin="0,0,0,15"/>
+                        <TextBlock Text="访问地址:" Margin="0,0,0,5"/>
+                        <TextBlock x:Name="LnkHttp" Foreground="#3fb950" Cursor="Hand" MouseDown="OpenLink" Margin="0,0,0,5"/>
+                        <TextBlock x:Name="LnkHttps" Foreground="#3fb950" Cursor="Hand" MouseDown="OpenLink" Margin="0,0,0,15" Visibility="Collapsed"/>
+                        <Button Content="💾 保存配置" Click="SaveConfig" Background="#21262d" Foreground="#e6edf3" BorderBrush="#30363d" Margin="0,0,0,10"/>
+                        
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Button Content="✔ 安装服务" Click="InstallService" Background="#3fb950" Foreground="#0d1117" FontWeight="Bold" Margin="0,0,5,0"/>
+                            <Button Content="✖ 卸载服务" Click="UninstallService" Background="#f85149" Foreground="#0d1117" FontWeight="Bold" Grid.Column="1"/>
+                        </Grid>
+                        <Button Content="🔄 重启服务" Click="RestartService" Background="#58a6ff" Foreground="#0d1117" FontWeight="Bold" Margin="0,10,0,0"/>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</Window>
+```
+#### 2. 交互逻辑 (MainWindow.xaml.cs)
+将你原 WinForms 中的所有逻辑平移到了 WPF，并且**升级了日志输出**，让它像终端一样带颜色高亮。替换 `MainWindow.xaml.cs` 的代码：
+```csharp
+using System.Windows;
+using System.Windows.Documents;
+using System.Windows.Input;
+using System.Windows.Media;
+using WebDAVConfigurator;
+namespace WebDAVConfigurator
+{
+    public partial class MainWindow : Window
+    {
+        private readonly string _baseDir = AppDomain.CurrentDomain.BaseDirectory.TrimEnd('\\');
+        private WebDAVConfigData _config = null!;
+        public string AppTitle => $"Easy WebDAV v{AppInfo.Version} - 服务管理器";
+        public MainWindow()
+        {
+            InitializeComponent();
+            DataContext = this; // 绑定标题
+            LoadConfig();
+        }
+        // ==================== 日志彩色输出 ====================
+        private void Log(string message, string color = "Gray")
+        {
+            Dispatcher.Invoke(() =>
+            {
+                var run = new Run($"[{DateTime.Now:HH:mm:ss}] {message}\n");
+                run.Foreground = color switch
+                {
+                    "Green" => Brushes.LightGreen,
+                    "Yellow" => Brushes.Yellow,
+                    "Red" => Brushes.LightPink,
+                    "Cyan" => Brushes.Cyan,
+                    _ => Brushes.LightGray
+                };
+                var paragraph = new Paragraph(run) { Margin = new Thickness(0) };
+                LogConsole.Document.Blocks.Add(paragraph);
+                LogConsole.ScrollToEnd();
+            });
+        }
+        // ==================== 配置读写 ====================
+        private void LoadConfig()
+        {
+            _config = WebDAVConfigData.Load();
+            TxtPort.Text = _config.Port.ToString();
+            TxtRootDir.Text = _config.RootDir;
+            ChkHttps.IsChecked = _config.EnableHttps;
+            TxtHttpsPort.Text = _config.HttpsPort.ToString();
+            HttpsPanel.IsEnabled = _config.EnableHttps;
+            RefreshUserList();
+            UpdateServerLink();
+            Log("配置加载成功。", "Cyan");
+        }
+        private void RefreshUserList()
+        {
+            LstUsers.Items.Clear();
+            foreach (var u in _config.Users)
+                LstUsers.Items.Add($"{u.Username} [{(u.ReadOnly ? "只读" : "读写")}]");
+        }
+        private void UpdateServerLink()
+        {
+            var port = int.TryParse(TxtPort.Text, out var p) ? p : _config.Port;
+            LnkHttp.Text = $"http://localhost:{port}/";
+            if (ChkHttps.IsChecked == true)
+            {
+                var httpsPort = int.TryParse(TxtHttpsPort.Text, out var hp) ? hp : _config.HttpsPort;
+                LnkHttps.Text = $"https://localhost:{httpsPort}/";
+                LnkHttps.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                LnkHttps.Visibility = Visibility.Collapsed;
+            }
+        }
+        private void BrowseFolder(object sender, RoutedEventArgs e)
+        {
+            using var dlg = new System.Windows.Forms.FolderBrowserDialog();
+            if (dlg.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+                TxtRootDir.Text = dlg.SelectedPath;
+        }
+        private void ToggleHttps(object sender, RoutedEventArgs e)
+        {
+            HttpsPanel.IsEnabled = ChkHttps.IsChecked == true;
+            UpdateServerLink();
+        }
+        private void OpenLink(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is System.Windows.Controls.TextBlock tb)
+            {
+                try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(tb.Text) { UseShellExecute = true }); }
+                catch (Exception ex) { Log($"打开浏览器失败: {ex.Message}", "Red"); }
+            }
+        }
+        // ==================== 用户管理 ====================
+        private void OnUserSelect(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        {
+            if (LstUsers.SelectedIndex < 0) return;
+            var text = LstUsers.SelectedItem?.ToString() ?? "";
+            var username = text.Contains('[') ? text.Split('[')[0].Trim() : text.Trim();
+            var user = _config.Users.FirstOrDefault(u => u.Username == username);
+            if (user != null)
+            {
+                TxtUser.Text = user.Username;
+                TxtPass.Text = user.Password;
+                ChkReadOnly.IsChecked = user.ReadOnly;
+            }
+        }
+        private void AddUser(object sender, RoutedEventArgs e)
+        {
+            var username = TxtUser.Text.Trim();
+            var password = TxtPass.Text;
+            if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password)) { MessageBox.Show("用户名和密码不能为空！"); return; }
+            if (_config.Users.Any(u => u.Username == username)) { MessageBox.Show("用户已存在！"); return; }
+            _config.Users.Add(new UserInfo { Username = username, Password = password, ReadOnly = ChkReadOnly.IsChecked == true });
+            RefreshUserList();
+            TxtUser.Clear(); TxtPass.Clear(); ChkReadOnly.IsChecked = false;
+            Log($"用户 {username} 已添加 (未保存)", "Yellow");
+        }
+        private void UpdateUser(object sender, RoutedEventArgs e)
+        {
+            if (LstUsers.SelectedIndex < 0) { MessageBox.Show("请先选择一个用户。"); return; }
+            var text = LstUsers.SelectedItem?.ToString() ?? "";
+            var oldName = text.Contains('[') ? text.Split('[')[0].Trim() : text.Trim();
+            var password = TxtPass.Text;
+            if (string.IsNullOrEmpty(password)) { MessageBox.Show("密码不能为空！"); return; }
+            var user = _config.Users.FirstOrDefault(u => u.Username == oldName);
+            if (user != null)
+            {
+                user.Password = password;
+                user.ReadOnly = ChkReadOnly.IsChecked == true;
+                RefreshUserList();
+                Log($"用户 {oldName} 信息已更新 (未保存)", "Yellow");
+            }
+        }
+        private void DeleteUser(object sender, RoutedEventArgs e)
+        {
+            if (LstUsers.SelectedIndex < 0) return;
+            var text = LstUsers.SelectedItem?.ToString() ?? "";
+            var username = text.Contains('[') ? text.Split('[')[0].Trim() : text.Trim();
+            if (MessageBox.Show($"确定要删除用户 {username} 吗？", "确认", MessageBoxButton.YesNo) == MessageBoxResult.Yes)
+            {
+                _config.Users.RemoveAll(u => u.Username == username);
+                RefreshUserList();
+                Log($"用户 {username} 已删除 (未保存)", "Yellow");
+            }
+        }
+        // ==================== 保存与服务操作 ====================
+        private void SaveConfig(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                _config.Port = int.Parse(TxtPort.Text);
+                _config.RootDir = TxtRootDir.Text;
+                _config.EnableHttps = ChkHttps.IsChecked == true;
+                _config.HttpsPort = int.Parse(TxtHttpsPort.Text);
+                _config.Save();
+                UpdateServerLink();
+                Log("配置已保存到文件。", "Green");
+                if (Program.IsRunningAsAdmin())
+                {
+                    var (ok, msg) = FirewallHelper.EnsureFirewallRule(_config.Port);
+                    Log(msg, ok ? "Green" : "Red");
+                    if (_config.EnableHttps) { var (ok2, msg2) = FirewallHelper.EnsureFirewallRule(_config.HttpsPort); Log(msg2, ok2 ? "Green" : "Red"); }
+                }
+                else Log($"防火墙规则需管理员权限，安装服务时会自动处理端口 {_config.Port}", "Yellow");
+                MessageBox.Show("配置已保存！\n请重启服务使配置生效。", "成功");
+            }
+            catch (Exception ex) { MessageBox.Show($"保存失败: {ex.Message}", "错误"); }
+        }
+        private bool RunElevatedAction(string action)
+        {
+            if (Program.IsRunningAsAdmin())
+            {
+                try
+                {
+                    var helper = new ServiceHelper();
+                    switch (action)
+                    {
+                        case "--install": helper.InstallService(_baseDir); break;
+                        case "--uninstall": helper.UninstallService(); break;
+                        case "--restart": helper.RestartService(); break;
+                    }
+                    return true;
+                }
+                catch (Exception ex) { Log($"操作失败: {ex.Message}", "Red"); return false; }
+            }
+            var arg = action == "--install" ? $"--install \"{_baseDir}\"" : action;
+            return Program.RelaunchAsAdmin(arg);
+        }
+        private void InstallService(object sender, RoutedEventArgs e)
+        {
+            if (MessageBox.Show("一键安装/重装 WebDAV 服务？", "确认", MessageBoxButton.YesNo) != MessageBoxResult.Yes) return;
+            var exePath = Path.Combine(_baseDir, "WebDAVService.exe");
+            if (!File.Exists(exePath)) { MessageBox.Show($"未找到 WebDAVService.exe: {exePath}", "错误"); return; }
+            // 先保存配置
+            SaveConfig(this, new RoutedEventArgs());
+            Log("正在安装服务（会弹出 UAC 确认）...", "Yellow");
+            var success = RunElevatedAction("--install");
+            if (!success) { Log("提权失败（UAC 被取消）", "Red"); return; }
+            var helper2 = new ServiceHelper();
+            if (helper2.WaitForRunning(15000))
+            {
+                Log($"安装完成！服务已在端口 {_config.Port} 运行。", "Green");
+                MessageBox.Show("服务安装完成！", "成功");
+            }
+            else { Log("服务已安装但未运行，请检查 logs/service.log", "Yellow"); }
+        }
+        private void UninstallService(object sender, RoutedEventArgs e)
+        {
+            if (MessageBox.Show("确定要卸载 WebDAV 服务吗？", "确认", MessageBoxButton.YesNo) != MessageBoxResult.Yes) return;
+            Log("正在卸载服务（会弹出 UAC 确认）...", "Yellow");
+            if (RunElevatedAction("--uninstall")) Log("服务已卸载。", "Green");
+            else Log("卸载失败（UAC 被取消）", "Red");
+        }
+        private void RestartService(object sender, RoutedEventArgs e)
+        {
+            if (MessageBox.Show("确定要重启 WebDAV 服务吗？", "确认", MessageBoxButton.YesNo) != MessageBoxResult.Yes) return;
+            Log("正在重启服务...", "Yellow");
+            if (RunElevatedAction("--restart"))
+            {
+                var helper2 = new ServiceHelper();
+                if (helper2.WaitForRunning(15000)) Log("服务已成功重启！", "Green");
+                else Log("服务状态异常。", "Red");
+            }
+            else Log("重启失败（UAC 被取消）", "Red");
+        }
+    }
+}
+```
+### 改动亮点：
+1. **零后端损失**：`ServiceHelper`、`FirewallHelper`、UAC 提权等逻辑一行没动，完美兼容。
+2. **视觉降维打击**：告别 WinForms 灰白控置，用上了目前主流的深色卡片+高亮文字的配置面板风格，左侧还带了个能输出彩色的终端日志窗口。
+3. **交互更紧凑**：把原本分散在选项卡里的设置和底部的一排按钮，整理成了右侧按顺序排列的三个区块卡片（基本设置 -> 用户管理 -> 服务控制），操作视线不用上下乱跑。
+直接编译运行，保证你的 WebDAV 工具格调拉满！

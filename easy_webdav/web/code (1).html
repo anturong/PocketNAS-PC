@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>WebDAV 文件管理器</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg0: #08090f; --bg1: #0e1019; --bg2: #151825; --bg3: #1c2035;
+            --bg4: #252a42; --bd: #2a3050; --bd2: #3a4268;
+            --t1: #e8ecf8; --t2: #8a94b8; --t3: #525e80;
+            --ac: #00d4aa; --ac2: #00f0c0; --acd: rgba(0,212,170,.1); --acg: rgba(0,212,170,.3);
+            --dg: #ff4757; --dgd: rgba(255,71,87,.12);
+            --wn: #ffbe0b; --in: #4cc9f0;
+            --r: 8px; --rl: 14px; --sh: 0 10px 40px rgba(0,0,0,.6);
+            --tr: .2s ease; --sb: env(safe-area-inset-bottom,0px);
+        }
+        *{box-sizing:border-box;margin:0;padding:0}
+        body{font-family:'Space Grotesk',system-ui,sans-serif;background:var(--bg0);color:var(--t1);overflow:hidden;height:100vh;height:100dvh;-webkit-tap-highlight-color:transparent}
+        ::-webkit-scrollbar{width:5px;height:5px}
+        ::-webkit-scrollbar-track{background:transparent}
+        ::-webkit-scrollbar-thumb{background:var(--bd);border-radius:3px}
+
+        @keyframes slideUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes scaleIn{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:scale(1)}}
+        @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        @keyframes sheetUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+        @keyframes toastIn{from{transform:translateX(120%);opacity:0}to{transform:translateX(0);opacity:1}}
+        @keyframes toastOut{from{transform:translateX(0);opacity:1}to{transform:translateX(120%);opacity:0}}
+        @keyframes stripe{0%{background-position:0 0}100%{background-position:40px 0}}
+        @keyframes rowIn{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:translateX(0)}}
+
+        .inp{width:100%;background:var(--bg1);border:1px solid var(--bd);border-radius:var(--r);padding:11px 14px;color:var(--t1);font-family:inherit;font-size:15px;outline:none;transition:var(--tr)}
+        .inp:focus{border-color:var(--ac);box-shadow:0 0 0 3px var(--acd)}
+        .inp::placeholder{color:var(--t3)}
+        .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 18px;border-radius:var(--r);font-family:inherit;font-size:14px;font-weight:500;cursor:pointer;border:none;transition:var(--tr);white-space:nowrap;user-select:none}
+        .btn:active{transform:scale(.97)}
+        .btn-p{background:var(--ac);color:#080a0f;font-weight:600}
+        .btn-p:hover{background:var(--ac2)}
+        .btn-g{background:transparent;color:var(--t2);border:1px solid var(--bd)}
+        .btn-g:hover{background:var(--bg3);color:var(--t1)}
+        .btn-d{background:var(--dgd);color:var(--dg)}
+        .btn-d:hover{background:var(--dg);color:#fff}
+        .spinner{width:28px;height:28px;border:3px solid var(--bd);border-top-color:var(--ac);border-radius:50%;animation:spin .7s linear infinite}
+
+        /* ===== 登录 ===== */
+        #loginView{display:flex;align-items:center;justify-content:center;height:100vh;height:100dvh;position:relative;overflow:hidden}
+        .loginBg{position:absolute;inset:0;background:radial-gradient(ellipse 70% 50% at 25% 25%,rgba(0,212,170,.07)0%,transparent 60%),radial-gradient(ellipse 50% 60% at 80% 75%,rgba(76,201,240,.05)0%,transparent 60%),var(--bg0)}
+        .loginGrid{position:absolute;inset:0;background-image:linear-gradient(var(--bd) 1px,transparent 1px),linear-gradient(90deg,var(--bd) 1px,transparent 1px);background-size:60px 60px;opacity:.1;mask-image:radial-gradient(ellipse 70% 70% at center,black,transparent)}
+        .loginCard{position:relative;z-index:2;background:var(--bg2);border:1px solid var(--bd);border-radius:var(--rl);padding:36px 28px;width:420px;max-width:92vw;box-shadow:var(--sh);animation:slideUp .5s ease}
+        .loginLogo{width:52px;height:52px;background:linear-gradient(135deg,var(--ac),#4cc9f0);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:22px;color:#080a0f;margin-bottom:20px}
+        .loginErr{color:var(--dg);font-size:13px;text-align:center;display:none;margin-top:8px}
+
+        /* ===== 主界面 ===== */
+        #mainView{display:none;height:100vh;height:100dvh;flex-direction:column}
+        #mainView.active{display:flex}
+        .topbar{display:flex;align-items:center;gap:8px;padding:0 14px;height:52px;min-height:52px;background:var(--bg1);border-bottom:1px solid var(--bd)}
+        .topbar .brand{display:flex;align-items:center;gap:8px;font-weight:700;font-size:15px;flex-shrink:0}
+        .topbar .brandI{width:30px;height:30px;background:linear-gradient(135deg,var(--ac),#4cc9f0);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px;color:#080a0f}
+        .breadcrumb{display:flex;align-items:center;gap:2px;flex:1;min-width:0;overflow-x:auto;font-size:13px;scrollbar-width:none}
+        .breadcrumb::-webkit-scrollbar{display:none}
+        .bcI{color:var(--t2);cursor:pointer;padding:4px 7px;border-radius:4px;white-space:nowrap;transition:var(--tr);flex-shrink:0}
+        .bcI:hover{color:var(--ac);background:var(--acd)}
+        .bcI.cur{color:var(--t1);cursor:default;font-weight:600}
+        .bcI.cur:hover{background:transparent;color:var(--t1)}
+        .bcS{color:var(--t3);font-size:9px;flex-shrink:0;margin:0 1px}
+        .uArea{display:flex;align-items:center;gap:8px;margin-left:auto;flex-shrink:0}
+        .uAvt{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--ac),#4cc9f0);display:flex;align-items:center;justify-content:center;font-size:12px;color:#080a0f;font-weight:700}
+        .uNm{font-size:12px;color:var(--t2)}
+        .btnOut{background:0;border:0;color:var(--t3);cursor:pointer;padding:6px;border-radius:6px;font-size:14px;transition:var(--tr)}
+        .btnOut:hover{color:var(--dg);background:var(--dgd)}
+
+        /* 桌面工具栏 */
+        .dToolbar{display:flex;align-items:center;gap:6px;padding:8px 14px;background:var(--bg2);border-bottom:1px solid var(--bd)}
+        .sBox{position:relative;margin-left:auto}
+        .sBox input{width:210px;padding:8px 12px 8px 34px;background:var(--bg1);border:1px solid var(--bd);border-radius:var(--r);color:var(--t1);font-size:13px;font-family:inherit;outline:none;transition:var(--tr)}
+        .sBox input:focus{border-color:var(--ac);width:280px;box-shadow:0 0 0 3px var(--acd)}
+        .sBox i{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--t3);font-size:12px}
+        .vTog{display:flex;border:1px solid var(--bd);border-radius:var(--r);overflow:hidden}
+        .vTog button{background:0;border:0;color:var(--t3);padding:7px 11px;cursor:pointer;transition:var(--tr);font-size:13px}
+        .vTog button.on{background:var(--acd);color:var(--ac)}
+        .vTog button:hover:not(.on){color:var(--t1)}
+
+        /* 移动端搜索 */
+        .mSrch{display:none;padding:8px 12px;background:var(--bg2);border-bottom:1px solid var(--bd);position:relative}
+        .mSrch input{width:100%;padding:9px 12px 9px 34px;background:var(--bg1);border:1px solid var(--bd);border-radius:var(--r);color:var(--t1);font-size:14px;font-family:inherit;outline:none}
+        .mSrch input:focus{border-color:var(--ac)}
+        .mSrch i{position:absolute;left:22px;top:50%;transform:translateY(-50%);color:var(--t3);font-size:13px}
+
+        /* ===== 文件容器 ===== */
+        .fileCon{flex:1;overflow-y:auto;position:relative;-webkit-overflow-scrolling:touch}
+
+        /* 列表头 */
+        .lHead{display:grid;grid-template-columns:1fr 90px 140px 80px;gap:8px;padding:10px 16px;font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:.6px;border-bottom:1px solid var(--bd);position:sticky;top:0;background:var(--bg2);z-index:5}
+
+        /* 列表行 — 关键样式 */
+        .fRow{
+            display:grid;grid-template-columns:1fr 90px 140px 80px;gap:8px;
+            padding:10px 16px;font-size:14px;align-items:center;
+            border-bottom:1px solid rgba(42,48,80,.25);cursor:pointer;transition:var(--tr);
+            animation:rowIn .25s ease both;
+        }
+        .fRow:hover{background:var(--bg3)}
+        .fRow.sel{background:var(--acd);border-color:transparent}
+        .fRow .fN{display:flex;align-items:center;gap:10px;min-width:0}
+        /* 大图标 */
+        .fRow .fIc{
+            width:40px;height:40px;border-radius:10px;
+            display:flex;align-items:center;justify-content:center;
+            font-size:17px;flex-shrink:0;transition:var(--tr);
+        }
+        .fRow:hover .fIc{transform:scale(1.08)}
+        .fRow .fTx{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
+        .fRow .fSz,.fRow .fMo{color:var(--t2);font-size:12px}
+        .fRow .fAt{display:flex;gap:4px;opacity:0;transition:var(--tr)}
+        .fRow:hover .fAt{opacity:1}
+        .fRow .fAt button{background:0;border:0;color:var(--t3);cursor:pointer;padding:5px 7px;border-radius:5px;font-size:13px;transition:var(--tr)}
+        .fRow .fAt button:hover{color:var(--t1);background:var(--bg4)}
+        .fRow .fAt button.dgA:hover{color:var(--dg);background:var(--dgd)}
+
+        /* 网格视图 */
+        .fGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:12px;padding:16px}
+        .fGi{
+            display:flex;flex-direction:column;align-items:center;
+            padding:18px 8px 14px;border-radius:var(--rl);border:2px solid transparent;
+            cursor:pointer;transition:var(--tr);text-align:center;
+            background:var(--bg2);position:relative;overflow:hidden;
+        }
+        .fGi::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:var(--rl) var(--rl) 0 0;opacity:0;transition:var(--tr)}
+        .fGi:hover{border-color:var(--bd);transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.3)}
+        .fGi:hover::before{opacity:1}
+        .fGi.sel{border-color:var(--ac);background:var(--acd)}
+        .fGi .gIc{width:52px;height:52px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;margin-bottom:10px;transition:var(--tr)}
+        .fGi:hover .gIc{transform:scale(1.1)}
+        .fGi .gNm{font-size:12px;font-weight:500;line-height:1.4;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:break-all;max-width:100%}
+        .fGi .gSz{font-size:10px;color:var(--t3);margin-top:4px}
+
+        /* 图标颜色 — 更鲜明 */
+        .ic-folder{background:rgba(255,190,11,.15);color:#ffc83d}
+        .ic-image{background:rgba(232,67,147,.15);color:#f368e0}
+        .ic-video{background:rgba(255,107,107,.15);color:#ff7979}
+        .ic-audio{background:rgba(162,155,254,.15);color:#a29bfe}
+        .ic-doc{background:rgba(0,212,170,.15);color:#2ed8a3}
+        .ic-code{background:rgba(76,201,240,.15);color:#74d9f5}
+        .ic-arch{background:rgba(255,165,2,.15);color:#ffa502}
+        .ic-pdf{background:rgba(255,71,87,.15);color:#ff6b81}
+        .ic-def{background:rgba(138,146,176,.12);color:var(--t2)}
+        /* 网格顶部彩条 */
+        .fGi.tb-folder::before{background:#ffc83d}
+        .fGi.tb-image::before{background:#f368e0}
+        .fGi.tb-video::before{background:#ff7979}
+        .fGi.tb-audio::before{background:#a29bfe}
+        .fGi.tb-doc::before{background:#2ed8a3}
+        .fGi.tb-code::before{background:#74d9f5}
+        .fGi.tb-arch::before{background:#ffa502}
+        .fGi.tb-pdf::before{background:#ff6b81}
+        .fGi.tb-def::before{background:var(--t3)}
+
+        /* 选择框 */
+        .chk{width:18px;height:18px;border-radius:5px;border:1.5px solid var(--bd2);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:var(--tr);flex-shrink:0}
+        .chk:hover{border-color:var(--ac)}
+        .chk.on{background:var(--ac);border-color:var(--ac)}
+        .chk.on::after{content:'\f00c';font-family:'Font Awesome 6 Free';font-weight:900;font-size:10px;color:#080a0f}
+
+        /* 右键菜单 */
+        .cmenu{position:fixed;z-index:1000;background:var(--bg2);border:1px solid var(--bd);border-radius:var(--r);padding:6px 0;min-width:180px;box-shadow:var(--sh);display:none}
+        .cmenu.show{display:block;animation:scaleIn .15s ease}
+        .cmI{display:flex;align-items:center;gap:10px;padding:10px 16px;font-size:14px;cursor:pointer;transition:var(--tr);color:var(--t2)}
+        .cmI:hover{background:var(--bg3);color:var(--t1)}
+        .cmI.dg{color:var(--dg)}
+        .cmI.dg:hover{background:var(--dgd)}
+        .cmI i{width:18px;text-align:center;font-size:13px}
+        .cmS{height:1px;background:var(--bd);margin:4px 0}
+
+        /* Action Sheet */
+        .asOv{position:fixed;inset:0;z-index:900;background:rgba(0,0,0,.55);display:none;align-items:flex-end;justify-content:center}
+        .asOv.show{display:flex}
+        .asSh{width:100%;max-width:500px;background:var(--bg2);border-radius:16px 16px 0 0;padding:8px 0;padding-bottom:calc(8px + var(--sb));animation:sheetUp .25s ease}
+        .asH{width:36px;height:4px;background:var(--bd2);border-radius:2px;margin:8px auto 12px}
+        .asT{padding:4px 20px 12px;font-size:13px;color:var(--t3);font-weight:500}
+        .asI{display:flex;align-items:center;gap:14px;padding:14px 20px;font-size:15px;cursor:pointer;transition:var(--tr);color:var(--t2)}
+        .asI:hover,.asI:active{background:var(--bg3);color:var(--t1)}
+        .asI.dg{color:var(--dg)}
+        .asI i{width:22px;text-align:center;font-size:16px}
+        .asS{height:1px;background:var(--bd);margin:4px 20px}
+
+        /* 模态框 */
+        .modal{position:fixed;inset:0;z-index:900;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;backdrop-filter:blur(4px);padding:16px}
+        .modal.show{display:flex}
+        .modBox{background:var(--bg2);border:1px solid var(--bd);border-radius:var(--rl);padding:24px;width:400px;max-width:100%;box-shadow:var(--sh);animation:scaleIn .2s ease}
+        .modT{font-size:17px;font-weight:600;margin-bottom:14px}
+        .modA{display:flex;gap:8px;justify-content:flex-end;margin-top:18px}
+
+        .dropOv{position:absolute;inset:0;z-index:50;background:rgba(0,212,170,.06);border:3px dashed var(--ac);display:none;align-items:center;justify-content:center;flex-direction:column;gap:12px;pointer-events:none;border-radius:var(--r)}
+        .dropOv.show{display:flex}
+        .dropOv i{font-size:48px;color:var(--ac);animation:float 1.5s ease infinite}
+        .dropOv span{font-size:16px;color:var(--ac);font-weight:600}
+
+        .upList{position:fixed;bottom:20px;right:20px;z-index:800;display:flex;flex-direction:column;gap:8px;max-width:340px;width:calc(100vw - 40px)}
+        .upIt{background:var(--bg2);border:1px solid var(--bd);border-radius:var(--r);padding:10px 14px;animation:slideUp .3s ease}
+        .upIt .upN{font-size:12px;margin-bottom:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .upIt .upB{height:3px;border-radius:2px;background:var(--bg3);overflow:hidden}
+        .upIt .upF{height:100%;border-radius:2px;background:var(--ac);transition:width .3s}
+        .upIt .upF.stripe{background-image:linear-gradient(45deg,rgba(255,255,255,.12) 25%,transparent 25%,transparent 50%,rgba(255,255,255,.12) 50%,rgba(255,255,255,.12) 75%,transparent 75%);background-size:40px 40px;animation:stripe .8s linear infinite}
+
+        .toastC{position:fixed;top:16px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:8px;max-width:360px;width:calc(100vw - 32px)}
+        .toast{display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--bg2);border:1px solid var(--bd);border-radius:var(--r);box-shadow:var(--sh);font-size:13px;animation:toastIn .3s ease;min-width:220px}
+        .toast.out{animation:toastOut .3s ease forwards}
+        .toast .tI{font-size:16px;flex-shrink:0}
+        .toast.tOk .tI{color:var(--ac)}.toast.tEr .tI{color:var(--dg)}.toast.tIn .tI{color:var(--in)}.toast.tWn .tI{color:var(--wn)}
+
+        .empty{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 20px;color:var(--t3)}
+        .empty i{font-size:48px;margin-bottom:16px;opacity:.25}
+        .empty p{font-size:14px}
+
+        .stBar{display:flex;align-items:center;gap:12px;padding:5px 16px;height:28px;min-height:28px;background:var(--bg1);border-top:1px solid var(--bd);font-size:11px;color:var(--t3)}
+
+        /* 移动端底部栏 */
+        .mBar{display:none;align-items:center;justify-content:space-around;padding:6px 4px;padding-bottom:calc(6px + var(--sb));background:var(--bg1);border-top:1px solid var(--bd);min-height:54px}
+        .mBar button{display:flex;flex-direction:column;align-items:center;gap:2px;background:0;border:0;color:var(--t3);font-size:10px;cursor:pointer;padding:4px 8px;border-radius:6px;transition:var(--tr);font-family:inherit}
+        .mBar button i{font-size:18px}
+        .mBar button:active{color:var(--ac);background:var(--acd)}
+
+        /* ===== 响应式 ===== */
+        @media(max-width:768px){
+            .topbar{padding:0 10px;height:48px;min-height:48px}
+            .topbar .brand span{display:none}
+            .uNm{display:none}
+            .dToolbar{display:none!important}
+            .mSrch{display:block!important}
+            .mBar{display:flex!important}
+            .lHead,.fRow{grid-template-columns:1fr}
+            .fRow .fMo,.lHead .colMo,.fRow .fSz,.lHead .colSz,.fRow .fAt,.lHead .colAt{display:none!important}
+            .fRow .fIc{width:44px;height:44px;font-size:19px;border-radius:11px}
+            .fRow .fTx{font-size:15px}
+            .fRow{padding:8px 14px}
+            .fGrid{grid-template-columns:repeat(auto-fill,minmax(95px,1fr));gap:8px;padding:12px}
+            .fGi{padding:14px 6px 10px}
+            .fGi .gIc{width:46px;height:46px;font-size:20px}
+            .fGi .gNm{font-size:11px}
+            .upList{bottom:70px;right:10px;left:10px;max-width:none;width:auto}
+            .toastC{top:auto;bottom:70px;right:10px;left:10px;max-width:none;width:auto}
+            .loginCard{padding:28px 20px}
+            .cmenu{display:none!important}
+            .stBar{display:none}
+        }
+        @media(min-width:769px){
+            .mBar{display:none!important}
+            .mSrch{display:none!important}
+        }
+        @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+    </style>
+</head>
+<body>
+
+<!-- ===== 登录 ===== -->
+<div id="loginView">
+    <div class="loginBg"></div>
+    <div class="loginGrid"></div>
+    <div class="loginCard">
+        <div class="loginLogo"><i class="fas fa-folder-tree"></i></div>
+        <h1 style="font-size:22px;font-weight:700;margin-bottom:4px">WebDAV 文件管理器</h1>
+        <p style="color:var(--t2);font-size:13px;margin-bottom:24px">连接你的 WebDAV 服务器，管理云端文件</p>
+        <div style="display:flex;flex-direction:column;gap:12px">
+            <div><label style="font-size:12px;color:var(--t2);margin-bottom:4px;display:block">服务器地址</label><input id="iSrv" type="url" class="inp" placeholder="https://dav.example.com/path/"></div>
+            <div><label style="font-size:12px;color:var(--t2);margin-bottom:4px;display:block">用户名</label><input id="iUsr" type="text" class="inp" placeholder="admin"></div>
+            <div><label style="font-size:12px;color:var(--t2);margin-bottom:4px;display:block">密码</label><input id="iPwd" type="password" class="inp" placeholder="输入密码"></div>
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--t2);cursor:pointer;margin-top:2px"><input id="iRem" type="checkbox" style="accent-color:var(--ac)"> 记住登录信息</label>
+            <button id="btnLogin" class="btn btn-p" style="width:100%;padding:12px;font-size:15px;margin-top:4px"><i class="fas fa-right-to-bracket"></i> 登录连接</button>
+            <div style="text-align:center;margin-top:2px"><button id="btnMock" class="btn btn-g" style="font-size:12px;padding:6px 14px"><i class="fas fa-flask"></i> 演示模式（无需服务器）</button></div>
+            <div class="loginErr" id="logErr"></div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== 主界面 ===== -->
+<div id="mainView">
+    <div class="topbar">
+        <div class="brand"><div class="brandI"><i class="fas fa-folder-tree"></i></div><span>WebDAV</span></div>
+        <div class="breadcrumb" id="bc"></div>
+        <div class="uArea">
+            <span class="uNm" id="uNm"></span>
+            <div class="uAvt" id="uAvt"></div>
+            <button class="btnOut" id="btnOut" title="退出"><i class="fas fa-arrow-right-from-bracket"></i></button>
+        </div>
+    </div>
+    <div class="dToolbar">
+        <button class="btn btn-p" style="font-size:13px;padding:7px 14px" id="dUp"><i class="fas fa-cloud-arrow-up"></i> 上传</button>
+        <button class="btn btn-g" style="font-size:13px;padding:7px 14px" id="dMd"><i class="fas fa-folder-plus"></i> 新建文件夹</button>
+        <button class="btn btn-g" style="font-size:13px;padding:7px 14px" id="dRf"><i class="fas fa-arrows-rotate"></i> 刷新</button>
+        <div class="vTog"><button id="vL" class="on"><i class="fas fa-list"></i></button><button id="vG"><i class="fas fa-grip"></i></button></div>
+        <div class="sBox"><i class="fas fa-search"></i><input id="sD" placeholder="搜索文件..."></div>
+    </div>
+    <div class="mSrch"><i class="fas fa-search"></i><input id="sM" placeholder="搜索文件..."></div>
+    <input id="fInp" type="file" multiple style="display:none">
+    <div class="fileCon" id="fCon">
+        <div id="lView">
+            <div class="lHead"><span>名称</span><span class="colSz">大小</span><span class="colMo">修改时间</span><span class="colAt">操作</span></div>
+            <div id="lBody"></div>
+        </div>
+        <div id="gView" class="fGrid" style="display:none"></div>
+        <div class="dropOv" id="dropOv"><i class="fas fa-cloud-arrow-up"></i><span>松开以上传文件</span></div>
+    </div>
+    <div class="mBar">
+        <button id="mUp"><i class="fas fa-cloud-arrow-up"></i>上传</button>
+        <button id="mMd"><i class="fas fa-folder-plus"></i>新建</button>
+        <button id="mRf"><i class="fas fa-arrows-rotate"></i>刷新</button>
+        <button id="mVw"><i class="fas fa-grip" id="mVI"></i><span id="mVT">网格</span></button>
+        <button id="mMr"><i class="fas fa-ellipsis"></i>更多</button>
+    </div>
+    <div class="stBar"><span id="stI">0 项</span><span id="stS"></span><span style="margin-left:auto" id="stSrv"></span></div>
+</div>
+
+<!-- 右键菜单 -->
+<div class="cmenu" id="cmF">
+    <div class="cmI" data-a="open"><i class="fas fa-folder-open"></i>打开</div>
+    <div class="cmI" data-a="download"><i class="fas fa-download"></i>下载</div>
+    <div class="cmS"></div>
+    <div class="cmI" data-a="rename"><i class="fas fa-pen"></i>重命名</div>
+    <div class="cmI" data-a="copypath"><i class="fas fa-copy"></i>复制路径</div>
+    <div class="cmS"></div>
+    <div class="cmI dg" data-a="delete"><i class="fas fa-trash-can"></i>删除</div>
+</div>
+<div class="cmenu" id="cmB">
+    <div class="cmI" data-a="upload"><i class="fas fa-cloud-arrow-up"></i>上传文件</div>
+    <div class="cmI" data-a="mkdir"><i class="fas fa-folder-plus"></i>新建文件夹</div>
+    <div class="cmS"></div>
+    <div class="cmI" data-a="refresh"><i class="fas fa-arrows-rotate"></i>刷新</div>
+</div>
+
+<!-- Action Sheet -->
+<div class="asOv" id="asOv">
+    <div class="asSh"><div class="asH"></div><div class="asT" id="asT">操作</div><div id="asB"></div></div>
+</div>
+
+<!-- 模态框 -->
+<div class="modal" id="modRen"><div class="modBox"><div class="modT">重命名</div><label style="font-size:12px;color:var(--t2);margin-bottom:4px;display:block">新名称</label><input id="renI" type="text" class="inp" placeholder="输入新名称"><div class="modA"><button class="btn btn-g" id="renC">取消</button><button class="btn btn-p" id="renO">确认</button></div></div></div>
+<div class="modal" id="modMd"><div class="modBox"><div class="modT">新建文件夹</div><label style="font-size:12px;color:var(--t2);margin-bottom:4px;display:block">文件夹名称</label><input id="mdI" type="text" class="inp" placeholder="输入文件夹名称"><div class="modA"><button class="btn btn-g" id="mdC">取消</button><button class="btn btn-p" id="mdO">创建</button></div></div></div>
+<div class="modal" id="modDel"><div class="modBox"><div class="modT">确认删除</div><p id="delM" style="color:var(--t2);font-size:14px;line-height:1.6"></p><div class="modA"><button class="btn btn-g" id="delC">取消</button><button class="btn btn-d" id="delO">删除</button></div></div></div>
+
+<div class="upList" id="upL"></div>
+<div class="toastC" id="toastC"></div>
+
+<script>
+/* ================================================================
+ *  配置
+ * ================================================================ */
+var CFG = {
+    timeout: 30000,
+    sizeUnits: ['B','KB','MB','GB','TB'],
+    dateFormat: 'YYYY-MM-DD HH:mm',
+    longPressMs: 450,
+    storageKey: 'wdav_auth'
+};
+
+/* ================================================================
+ *  工具
+ * ================================================================ */
+var U = {
+    join: function() { return Array.prototype.slice.call(arguments).join('/').replace(/\/+/g,'/'); },
+    base: function(p) { return p.replace(/\/+$/,'').split('/').pop()||''; },
+    dir: function(p) { var a=p.replace(/\/+$/,'').split('/');a.pop();return a.join('/')||'/'; },
+    rslash: function(p) { return p.replace(/\/+$/,'')||'/'; },
+    lslash: function(p) { return p[0]==='/'?p:'/'+p; },
+    fmtSz: function(b) {
+        if(b==null||b==='')return'-';b=parseInt(b,10);if(isNaN(b)||b<0)return'-';if(b===0)return'0 B';
+        var i=Math.min(Math.floor(Math.log(b)/Math.log(1024)),CFG.sizeUnits.length-1);
+        return(b/Math.pow(1024,i)).toFixed(i>0?1:0)+' '+CFG.sizeUnits[i];
+    },
+    fmtDt: function(s) {
+        if(!s)return'-';var d=new Date(s);if(isNaN(d.getTime()))return'-';
+        var p=function(n){return String(n).padStart(2,'0');};
+        return CFG.dateFormat.replace('YYYY',d.getFullYear()).replace('MM',p(d.getMonth()+1)).replace('DD',p(d.getDate())).replace('HH',p(d.getHours())).replace('mm',p(d.getMinutes()));
+    },
+    fico: function(n,d) {
+        if(d)return{ico:'fas fa-folder',cl:'ic-folder',tb:'tb-folder'};
+        var e=(n.split('.').pop()||'').toLowerCase();
+        var m={'ic-image':['jpg','jpeg','png','gif','bmp','svg','webp','ico','tiff'],'ic-video':['mp4','avi','mkv','mov','wmv','flv','webm'],'ic-audio':['mp3','wav','flac','aac','ogg','wma','m4a'],'ic-doc':['doc','docx','txt','rtf','odt','xls','xlsx','csv','ppt','pptx'],'ic-code':['html','css','js','ts','py','java','c','cpp','h','go','rs','rb','php','sh','json','xml','yaml','yml','md','sql'],'ic-arch':['zip','rar','7z','tar','gz','bz2'],'ic-pdf':['pdf']};
+        var im={'ic-image':'fas fa-file-image','ic-video':'fas fa-file-video','ic-audio':'fas fa-file-audio','ic-doc':'fas fa-file-lines','ic-code':'fas fa-file-code','ic-arch':'fas fa-file-zipper','ic-pdf':'fas fa-file-pdf'};
+        var tb={'ic-image':'tb-image','ic-video':'tb-video','ic-audio':'tb-audio','ic-doc':'tb-doc','ic-code':'tb-code','ic-arch':'tb-arch','ic-pdf':'tb-pdf'};
+        for(var k in m){if(m[k].indexOf(e)>=0)return{ico:im[k],cl:k,tb:tb[k]};}
+        return{ico:'fas fa-file',cl:'ic-def',tb:'tb-def'};
+    },
+    esc: function(s){var e=document.createElement('span');e.textContent=s;return e.innerHTML;},
+    mob: function(){return window.innerWidth<=768;}
+};
+
+/* ================================================================
+ *  WebDAV 客户端
+ * ================================================================ */
+var Dav = {
+    s:'',u:'',p:'',bp:'',
+    cfg:function(o){this.s=o.server.replace(/\/+$/,'');this.u=o.username;this.p=o.password;try{var u=new URL(this.s);this.bp=u.pathname.replace(/\/+$/,'')||'';}catch(e){this.bp='';}},
+    url:function(path){return this.s+U.join(this.bp,path);},
+    ah:function(){return this.u?{'Authorization':'Basic '+btoa(this.u+':'+this.p)}:{};},
+    _f:function(url,opts){
+        var c=new AbortController();var tid=setTimeout(function(){c.abort();},CFG.timeout);opts.signal=c.signal;
+        return fetch(url,opts).then(function(r){clearTimeout(tid);return r;}).catch(function(e){clearTimeout(tid);throw e.name==='AbortError'?new Error('请求超时'):e;});
+    },
+    ls:function(path){
+        var self=this;var url=self.url(path);
+        var h=Object.assign({},self.ah(),{'Depth':'1','Content-Type':'application/xml; charset=utf-8'});
+        var b='<?xml version="1.0" encoding="utf-8"?><D:propfind xmlns:D="DAV:"><D:prop><D:resourcetype/><D:getcontentlength/><D:getlastmodified/><D:displayname/></D:prop></D:propfind>';
+        return self._f(url,{method:'PROPFIND',headers:h,body:b}).then(function(r){
+            if(r.status===401)throw new Error('认证失败');if(r.status===404)throw new Error('路径不存在');if(r.status>=400)throw new Error('HTTP '+r.status);return r.text();
+        }).then(function(xml){return self._parse(xml,path);});
+    },
+    _parse:function(xml,cp){
+        var doc=new DOMParser().parseFromString(xml,'application/xml');var rs=doc.querySelectorAll('response');var fs=[];var self=this;
+        var cc=U.rslash(U.join(self.bp,cp));
+        rs.forEach(function(r){
+            var hEl=r.querySelector('href');if(!hEl)return;var h=hEl.textContent;var hc=U.rslash(decodeURIComponent(h));
+            if(hc===cc||hc===cc+'/')return;
+            var isDir=r.querySelector('resourcetype collection')!==null||r.querySelector('resourcetype > collection')!==null;
+            var dn=(r.querySelector('displayname')||{}).textContent||U.base(decodeURIComponent(h));
+            var szEl=r.querySelector('getcontentlength');var sz=szEl?parseInt(szEl.textContent,10):(isDir?0:undefined);
+            var moEl=r.querySelector('getlastmodified');var mo=moEl?moEl.textContent:null;
+            fs.push({name:dn,path:U.lslash(U.join(cp,dn)),isDir:isDir,size:sz,modified:mo});
+        });
+        fs.sort(function(a,b){if(a.isDir!==b.isDir)return a.isDir?-1:1;return a.name.localeCompare(b.name);});return fs;
+    },
+    mkdir:function(path){var self=this;return self._f(self.url(path),{method:'MKCOL',headers:self.ah()}).then(function(r){if(r.status===401)throw new Error('认证失败');if(r.status===405)throw new Error('已存在');if(r.status>=400)throw new Error('HTTP '+r.status);return true;});},
+    rm:function(path){var self=this;return self._f(self.url(path),{method:'DELETE',headers:self.ah()}).then(function(r){if(r.status>=400)throw new Error('HTTP '+r.status);return true;});},
+    mv:function(s,d){var self=this;return self._f(self.url(s),{method:'MOVE',headers:Object.assign({},self.ah(),{'Destination':self.url(d),'Overwrite':'F'})}).then(function(r){if(r.status===412)throw new Error('目标已存在');if(r.status>=400)throw new Error('HTTP '+r.status);return true;});},
+    up:function(path,file,pg){
+        var self=this;return new Promise(function(ok,no){
+            var x=new XMLHttpRequest();x.open('PUT',self.url(path),true);var a=self.ah();if(a.Authorization)x.setRequestHeader('Authorization',a.Authorization);
+            x.upload.onprogress=function(e){if(e.lengthComputable&&pg)pg(Math.round(e.loaded/e.total*100));};
+            x.onload=function(){x.status>=200&&x.status<300?ok(true):no(new Error('HTTP '+x.status));};
+            x.onerror=function(){no(new Error('网络错误'));};x.ontimeout=function(){no(new Error('超时'));};x.timeout=CFG.timeout;x.send(file);
+        });
+    },
+    dl:function(path){
+        var self=this;return self._f(self.url(path),{method:'GET',headers:self.ah()}).then(function(r){
+            if(r.status>=400)throw new Error('HTTP '+r.status);return r.blob();
+        }).then(function(b){var a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=U.base(path);document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(a.href);});
+    }
+};
+
+/* ================================================================
+ *  模拟文件系统
+ * ================================================================ */
+var Mock = {
+    d:null,
+    init:function(){
+        this.d={
+            '/':[
+                {name:'文档',path:'/文档',isDir:true,size:0,modified:'2024-06-15T10:30:00Z'},
+                {name:'图片',path:'/图片',isDir:true,size:0,modified:'2024-07-20T08:00:00Z'},
+                {name:'项目代码',path:'/项目代码',isDir:true,size:0,modified:'2024-08-01T14:00:00Z'},
+                {name:'音乐',path:'/音乐',isDir:true,size:0,modified:'2024-05-10T09:00:00Z'},
+                {name:'视频',path:'/视频',isDir:true,size:0,modified:'2024-04-05T16:00:00Z'},
+                {name:'README.md',path:'/README.md',isDir:false,size:4096,modified:'2024-08-10T16:00:00Z'},
+                {name:'config.json',path:'/config.json',isDir:false,size:512,modified:'2024-08-05T12:00:00Z'},
+                {name:'backup.zip',path:'/backup.zip',isDir:false,size:15728640,modified:'2024-07-30T20:00:00Z'},
+                {name:'report.pdf',path:'/report.pdf',isDir:false,size:2097152,modified:'2024-08-12T09:00:00Z'}
+            ],
+            '/文档':[
+                {name:'工作报告.docx',path:'/文档/工作报告.docx',isDir:false,size:256000,modified:'2024-06-15T10:30:00Z'},
+                {name:'会议记录.txt',path:'/文档/会议记录.txt',isDir:false,size:8192,modified:'2024-06-20T15:00:00Z'},
+                {name:'财务报表',path:'/文档/财务报表',isDir:true,size:0,modified:'2024-07-01T09:00:00Z'},
+                {name:'产品需求.pdf',path:'/文档/产品需求.pdf',isDir:false,size:1048576,modified:'2024-06-28T11:30:00Z'},
+                {name:'开发指南.md',path:'/文档/开发指南.md',isDir:false,size:32768,modified:'2024-07-10T14:00:00Z'}
+            ],
+            '/文档/财务报表':[
+                {name:'Q1报表.xlsx',path:'/文档/财务报表/Q1报表.xlsx',isDir:false,size:128000,modified:'2024-04-01T10:00:00Z'},
+                {name:'Q2报表.xlsx',path:'/文档/财务报表/Q2报表.xlsx',isDir:false,size:135000,modified:'2024-07-01T10:00:00Z'}
+            ],
+            '/图片':[
+                {name:'风景.jpg',path:'/图片/风景.jpg',isDir:false,size:3072000,modified:'2024-07-20T08:00:00Z'},
+                {name:'头像.png',path:'/图片/头像.png',isDir:false,size:51200,modified:'2024-07-18T12:00:00Z'},
+                {name:'截图',path:'/图片/截图',isDir:true,size:0,modified:'2024-07-25T16:00:00Z'},
+                {name:'banner.svg',path:'/图片/banner.svg',isDir:false,size:8192,modified:'2024-08-02T10:00:00Z'}
+            ],
+            '/图片/截图':[
+                {name:'screen01.png',path:'/图片/截图/screen01.png',isDir:false,size:204800,modified:'2024-07-25T16:00:00Z'},
+                {name:'screen02.png',path:'/图片/截图/screen02.png',isDir:false,size:256000,modified:'2024-07-26T09:30:00Z'}
+            ],
+            '/项目代码':[
+                {name:'index.html',path:'/项目代码/index.html',isDir:false,size:8192,modified:'2024-08-01T14:00:00Z'},
+                {name:'style.css',path:'/项目代码/style.css',isDir:false,size:4096,modified:'2024-08-01T14:00:00Z'},
+                {name:'app.js',path:'/项目代码/app.js',isDir:false,size:16384,modified:'2024-08-01T14:30:00Z'},
+                {name:'package.json',path:'/项目代码/package.json',isDir:false,size:1024,modified:'2024-07-28T10:00:00Z'},
+                {name:'server.py',path:'/项目代码/server.py',isDir:false,size:6144,modified:'2024-08-05T11:00:00Z'}
+            ],
+            '/音乐':[
+                {name:'playlist.m3u',path:'/音乐/playlist.m3u',isDir:false,size:2048,modified:'2024-05-10T09:00:00Z'},
+                {name:'song.mp3',path:'/音乐/song.mp3',isDir:false,size:5242880,modified:'2024-05-15T20:00:00Z'},
+                {name:'podcast.flac',path:'/音乐/podcast.flac',isDir:false,size:31457280,modified:'2024-06-01T18:00:00Z'}
+            ],
+            '/视频':[
+                {name:'demo.mp4',path:'/视频/demo.mp4',isDir:false,size:52428800,modified:'2024-04-05T16:00:00Z'},
+                {name:'tutorial.mkv',path:'/视频/tutorial.mkv',isDir:false,size:104857600,modified:'2024-03-20T10:00:00Z'}
+            ]
+        };
+    },
+    delay:function(ms){return new Promise(function(r){setTimeout(r,ms);});},
+    ls:function(path){var self=this;if(!self.d)self.init();return self.delay(120).then(function(){var p=U.rslash(path)||'/';if(!self.d[p])return[];return self.d[p].map(function(f){return Object.assign({},f);});});},
+    mkdir:function(path){var self=this;if(!self.d)self.init();return self.delay(80).then(function(){var p=U.rslash(path);var par=U.dir(p);var nm=U.base(p);if(!self.d[par])throw new Error('父目录不存在');if(self.d[par].some(function(f){return f.name===nm;}))throw new Error('已存在');self.d[par].push({name:nm,path:p,isDir:true,size:0,modified:new Date().toISOString()});self.d[p]=[];return true;});},
+    rm:function(path){var self=this;if(!self.d)self.init();return self.delay(80).then(function(){var p=U.rslash(path);var par=U.dir(p);var nm=U.base(p);if(!self.d[par])throw new Error('不存在');var idx=-1;self.d[par].forEach(function(f,i){if(f.name===nm)idx=i;});if(idx<0)throw new Error('不存在');self.d[par].splice(idx,1);delete self.d[p];return true;});},
+    up:function(path,file){var self=this;if(!self.d)self.init();var par=U.dir(path);var nm=U.base(path);if(!self.d[par])return Promise.reject(new Error('目录不存在'));return self.delay(200).then(function(){var entry={name:nm,path:U.rslash(path),isDir:false,size:file.size,modified:new Date().toISOString()};var ex=-1;self.d[par].forEach(function(f,i){if(f.name===nm)ex=i;});if(ex>=0)self.d[par][ex]=entry;else self.d[par].push(entry);return true;});},
+    mv:function(src,dst){var self=this;if(!self.d)self.init();return self.delay(80).then(function(){var par=U.dir(src);var nm=U.base(src);var dn=U.base(dst);if(!self.d[par])throw new Error('不存在');var item=null;self.d[par].forEach(function(f){if(f.name===nm)item=f;});if(!item)throw new Error('不存在');item.name=dn;item.path=U.rslash(dst);return true;});},
+    dl:function(path){return this.delay(150).then(function(){var nm=U.base(path);var b=new Blob(['[模拟 - '+nm+']'],{type:'application/octet-stream'});var a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=nm;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(a.href);});}
+};
+
+/* ================================================================
+ *  主应用
+ * ================================================================ */
+var A = {
+    path:'/',files:[],sel:{},vm:'list',mock:false,loading:false,ctx:null,lt:null,lf:false,
+
+    start:function(){
+        this.bindAll();
+        this.loadAuth();
+        if(U.mob()){this.vm='grid';this.applyView();}
+    },
+
+    loadAuth:function(){try{var s=localStorage.getItem(CFG.storageKey);if(s){var d=JSON.parse(s);document.getElementById('iSrv').value=d.s||'';document.getElementById('iUsr').value=d.u||'';document.getElementById('iPwd').value=d.p||'';document.getElementById('iRem').checked=true;}}catch(e){}},
+    saveAuth:function(s,u,p){try{localStorage.setItem(CFG.storageKey,JSON.stringify({s:s,u:u,p:p}));}catch(e){}},
+    clearAuth:function(){try{localStorage.removeItem(CFG.storageKey);}catch(e){}},
+
+    selH:function(p){return!!this.sel[p];},selA:function(p){this.sel[p]=true;},selR:function(p){delete this.sel[p];},selCl:function(){this.sel={};},selC:function(){return Object.keys(this.sel).length;},selP:function(){return Object.keys(this.sel);},
+
+    /* 登录 */
+    login:function(mock){
+        var self=this;
+        var srv=document.getElementById('iSrv').value.trim();
+        var usr=document.getElementById('iUsr').value.trim();
+        var pwd=document.getElementById('iPwd').value;
+        var err=document.getElementById('logErr');err.style.display='none';
+        if(!mock&&!srv){err.textContent='请输入服务器地址';err.style.display='block';return;}
+        self.mock=mock;
+        var bL=document.getElementById('btnLogin'),bM=document.getElementById('btnMock');
+        bL.disabled=true;bM.disabled=true;bL.innerHTML='<div class="spinner" style="width:16px;height:16px;border-width:2px"></div> 连接中...';
+        var conn=mock?Promise.resolve(true):(function(){Dav.cfg({server:srv,username:usr,password:pwd});return Dav.ls('/');})();
+        conn.then(function(){
+            if(mock)Mock.init();
+            if(document.getElementById('iRem').checked)self.saveAuth(srv,usr,pwd);else self.clearAuth();
+            document.getElementById('loginView').style.display='none';
+            document.getElementById('mainView').classList.add('active');
+            document.getElementById('uNm').textContent=mock?'演示用户':(usr||'匿名');
+            document.getElementById('uAvt').textContent=mock?'D':(usr?usr[0].toUpperCase():'?');
+            document.getElementById('stSrv').textContent=mock?'演示模式':srv;
+            self.path='/';
+            return self.load();
+        }).catch(function(e){err.textContent=e.message||'连接失败';err.style.display='block';}).finally(function(){bL.disabled=false;bM.disabled=false;bL.innerHTML='<i class="fas fa-right-to-bracket"></i> 登录连接';});
+    },
+
+    logout:function(){this.clearAuth();this.path='/';this.files=[];this.selCl();document.getElementById('mainView').classList.remove('active');document.getElementById('loginView').style.display='flex';document.getElementById('iPwd').value='';},
+
+    /* 加载 */
+    load:function(){
+        var self=this;if(self.loading)return Promise.resolve();self.loading=true;self.selCl();
+        document.getElementById('lBody').innerHTML='<div style="padding:50px;display:flex;justify-content:center"><div class="spinner"></div></div>';
+        document.getElementById('gView').innerHTML='';
+        var p=self.mock?Mock.ls(self.path):Dav.ls(self.path);
+        return p.then(function(fs){self.files=fs;self.render();self.renderBc();self.updSt();}).catch(function(e){self.files=[];document.getElementById('lBody').innerHTML='<div class="empty"><i class="fas fa-circle-exclamation"></i><p>'+U.esc(e.message||'加载失败')+'</p></div>';self.toast(e.message||'加载失败','er');}).finally(function(){self.loading=false;});
+    },
+
+    /* 渲染 */
+    render:function(){
+        var self=this;var sv=(document.getElementById('sD').value||document.getElementById('sM').value||'').toLowerCase().trim();
+        var fs=self.files;if(sv)fs=fs.filter(function(f){return f.name.toLowerCase().indexOf(sv)>=0;});
+        if(!fs.length){var h='<div class="empty"><i class="fas fa-folder-open"></i><p>'+(sv?'没有匹配的文件':'此文件夹为空，点击上传或新建文件夹')+'</p></div>';document.getElementById('lBody').innerHTML=h;document.getElementById('gView').innerHTML=h;return;}
+        document.getElementById('lBody').innerHTML=fs.map(function(f,i){return self.rowH(f,i);}).join('');
+        document.getElementById('gView').innerHTML=fs.map(function(f,i){return self.gridH(f,i);}).join('');
+    },
+
+    rowH:function(f,i){
+        var ic=U.fico(f.name,f.isDir);var s=this.selH(f.path)?' sel':'';var c=this.selH(f.path)?' on':'';
+        var delay=Math.min(i*30,300);
+        return '<div class="fRow'+s+'" data-p="'+U.esc(f.path)+'" data-d="'+f.isDir+'" data-n="'+U.esc(f.name)+'" style="animation-delay:'+delay+'ms">'+
+            '<div class="fN"><div class="chk'+c+'" data-cp="'+U.esc(f.path)+'"></div><div class="fIc '+ic.cl+'"><i class="'+ic.ico+'"></i></div><span class="fTx">'+U.esc(f.name)+'</span></div>'+
+            '<span class="fSz">'+(f.isDir?'--':U.fmtSz(f.size))+'</span>'+
+            '<span class="fMo">'+U.fmtDt(f.modified)+'</span>'+
+            '<div class="fAt">'+
+            (f.isDir?'':'<button data-a="dl" data-p="'+U.esc(f.path)+'" title="下载"><i class="fas fa-download"></i></button>')+
+            '<button data-a="ren" data-p="'+U.esc(f.path)+'" data-n="'+U.esc(f.name)+'" title="重命名"><i class="fas fa-pen"></i></button>'+
+            '<button data-a="del" data-p="'+U.esc(f.path)+'" data-n="'+U.esc(f.name)+'" class="dgA" title="删除"><i class="fas fa-trash-can"></i></button>'+
+            '</div></div>';
+    },
+
+    gridH:function(f,i){
+        var ic=U.fico(f.name,f.isDir);var s=this.selH(f.path)?' sel':'';
+        var delay=Math.min(i*30,300);
+        return '<div class="fGi '+ic.tb+s+'" data-p="'+U.esc(f.path)+'" data-d="'+f.isDir+'" data-n="'+U.esc(f.name)+'" style="animation-delay:'+delay+'ms">'+
+            '<div class="gIc '+ic.cl+'"><i class="'+ic.ico+'"></i></div>'+
+            '<div class="gNm">'+U.esc(f.name)+'</div>'+
+            (f.isDir?'':'<div class="gSz">'+U.fmtSz(f.size)+'</div>')+
+            '</div>';
+    },
+
+    renderBc:function(){
+        var ps=this.path.replace(/\/+$/,'').split('/').filter(Boolean);
+        var h='<span class="bcI" data-bp="/"><i class="fas fa-house" style="font-size:12px"></i></span>';
+        var acc='';ps.forEach(function(p,i){acc+='/'+p;var cur=i===ps.length-1;h+='<span class="bcS"><i class="fas fa-chevron-right"></i></span><span class="bcI'+(cur?' cur':'')+'" data-bp="'+U.esc(acc)+'">'+U.esc(p)+'</span>';});
+        document.getElementById('bc').innerHTML=h;var bc=document.getElementById('bc');bc.scrollLeft=bc.scrollWidth;
+    },
+
+    updSt:function(){
+        var t=this.files.length,d=this.files.filter(function(f){return f.isDir;}).length;
+        document.getElementById('stI').textContent=t+' 项'+(d>0?'（'+d+' 文件夹，'+(t-d)+' 文件）':'');
+        document.getElementById('stS').textContent=this.selC()>0?'已选 '+this.selC()+' 项':'';
+    },
+
+    nav:function(path){this.path=U.lslash(path);document.getElementById('sD').value='';document.getElementById('sM').value='';return this.load();},
+    open:function(path,isDir){if(isDir)return this.nav(path);return this.dl(path);},
+
+    dl:function(path){
+        var self=this;var p=self.mock?Mock.dl(path):Dav.dl(path);
+        return p.then(function(){self.toast('下载成功: '+U.base(path),'ok');}).catch(function(e){self.toast('下载失败: '+e.message,'er');});
+    },
+
+    upload:function(fl){
+        var self=this;if(!fl||!fl.length)return;var pc=document.getElementById('upL');var chain=Promise.resolve();
+        for(var i=0;i<fl.length;i++){(function(file){
+            var tp=U.join(self.path,file.name);
+            var el=document.createElement('div');el.className='upIt';
+            el.innerHTML='<div class="upN"><i class="fas fa-cloud-arrow-up" style="margin-right:6px;color:var(--ac)"></i>'+U.esc(file.name)+'</div><div class="upB"><div class="upF stripe" style="width:0%"></div></div>';
+            pc.appendChild(el);
+            var p=self.mock?Mock.up(tp,file):Dav.up(tp,file);
+            chain=chain.then(function(){return p;}).then(function(){var f=el.querySelector('.upF');if(f){f.classList.remove('stripe');f.style.width='100%';}self.toast('上传成功: '+file.name,'ok');}).catch(function(e){var f=el.querySelector('.upF');if(f){f.classList.remove('stripe');f.style.background='var(--dg)';}self.toast('上传失败: '+file.name,'er');});
+            setTimeout(function(){el.style.opacity='0';el.style.transition='opacity .3s';setTimeout(function(){el.remove();},300);},2500);
+        })(fl[i]);}
+        chain.finally(function(){self.load();});
+    },
+
+    mkdir:function(name){
+        var self=this;if(!name||!name.trim()){self.toast('名称不能为空','wn');return;}name=name.trim();
+        if(/[/\\:*?"<>|]/.test(name)){self.toast('名称包含非法字符','wn');return;}
+        var path=U.join(self.path,name);
+        (self.mock?Mock.mkdir(path):Dav.mkdir(path)).then(function(){self.toast('已创建: '+name,'ok');self.closeMod('modMd');self.load();}).catch(function(e){self.toast('创建失败: '+e.message,'er');});
+    },
+
+    ren:function(src,nn){
+        var self=this;if(!nn||!nn.trim()){self.toast('名称不能为空','wn');return;}nn=nn.trim();
+        if(/[/\\:*?"<>|]/.test(nn)){self.toast('名称包含非法字符','wn');return;}
+        var dst=U.join(U.dir(src),nn);
+        (self.mock?Mock.mv(src,dst):Dav.mv(src,dst)).then(function(){self.toast('重命名成功','ok');self.closeMod('modRen');self.load();}).catch(function(e){self.toast('重命名失败: '+e.message,'er');});
+    },
+
+    rm:function(path){
+        var self=this;(self.mock?Mock.rm(path):Dav.rm(path)).then(function(){self.toast('已删除: '+U.base(path),'ok');self.closeMod('modDel');self.load();}).catch(function(e){self.toast('删除失败: '+e.message,'er');});
+    },
+
+    rmSel:function(){
+        var self=this;var ps=self.selP();if(!ps.length)return;var ok=0,fail=0;var ch=Promise.resolve();
+        ps.forEach(function(p){ch=ch.then(function(){return(self.mock?Mock.rm(p):Dav.rm(p)).then(function(){ok++;}).catch(function(){fail++;});});});
+        ch.then(function(){self.toast('删除完成: 成功 '+ok+(fail>0?'，失败 '+fail:''),fail>0?'wn':'ok');self.selCl();self.closeMod('modDel');self.load();});
+    },
+
+    startRen:function(path,name){var self=this;self.ctx=path;document.getElementById('renI').value=name;self.openMod('modRen');setTimeout(function(){var i=document.getElementById('renI');i.focus();var d=name.lastIndexOf('.');if(d>0)i.setSelectionRange(0,d);else i.select();},100);},
+    startMd:function(){document.getElementById('mdI').value='';this.openMod('modMd');setTimeout(function(){document.getElementById('mdI').focus();},100);},
+    confirmDel:function(path,name){var self=this;self.ctx=path;var f=self.files.find(function(x){return x.path===path;});document.getElementById('delM').innerHTML='确定要删除 <strong style="color:var(--t1)">'+U.esc(name)+'</strong> 吗？'+(f&&f.isDir?'<br><span style="color:var(--wn);font-size:12px">将递归删除所有内容</span>':'');document.getElementById('delO').onclick=function(){self.rm(path);};self.openMod('modDel');},
+    confirmDelSel:function(){var self=this;var c=self.selC();if(!c)return;document.getElementById('delM').innerHTML='确定删除选中的 <strong style="color:var(--t1)">'+c+'</strong> 个项目？';document.getElementById('delO').onclick=function(){self.rmSel();};self.openMod('modDel');},
+
+    applyView:function(){
+        this.vm=this.vm;
+        document.getElementById('lView').style.display=this.vm==='list'?'':'none';
+        document.getElementById('gView').style.display=this.vm==='grid'?'':'none';
+        document.getElementById('vL').classList.toggle('on',this.vm==='list');
+        document.getElementById('vG').classList.toggle('on',this.vm==='grid');
+        document.getElementById('mVI').className=this.vm==='list'?'fas fa-grip':'fas fa-list';
+        document.getElementById('mVT').textContent=this.vm==='list'?'网格':'列表';
+    },
+    setView:function(m){this.vm=m;this.applyView();},
+    togView:function(){this.setView(this.vm==='list'?'grid':'list');},
+    openMod:function(id){document.getElementById(id).classList.add('show');},
+    closeMod:function(id){document.getElementById(id).classList.remove('show');},
+
+    showSheet:function(title,items){
+        var self=this;document.getElementById('asT').textContent=title;
+        var h='';items.forEach(function(it){if(it.sep){h+='<div class="asS"></div>';return;}h+='<div class="asI'+(it.dg?' dg':'')+'" data-a="'+it.action+'"><i class="'+it.icon+'"></i><span>'+it.label+'</span></div>';});
+        document.getElementById('asB').innerHTML=h;document.getElementById('asOv').classList.add('show');
+        document.getElementById('asB').onclick=function(e){var el=e.target.closest('.asI');if(!el)return;document.getElementById('asOv').classList.remove('show');self.handleAct(el.dataset.a);};
+    },
+    hideSheet:function(){document.getElementById('asOv').classList.remove('show');},
+
+    handleAct:function(act){
+        var self=this;var p=self.ctx;var nm=p?U.base(p):'';var f=p?self.files.find(function(x){return x.path===p;}):null;
+        switch(act){
+            case'open':if(f)self.open(p,f.isDir);break;
+            case'download':case'dl':self.dl(p);break;
+            case'rename':case'ren':self.startRen(p,nm);break;
+            case'copypath':if(navigator.clipboard)navigator.clipboard.writeText(p).then(function(){self.toast('已复制','ok');});break;
+            case'delete':case'del':self.confirmDel(p,nm);break;
+            case'upload':document.getElementById('fInp').click();break;
+            case'mkdir':self.startMd();break;
+            case'refresh':self.load();break;
+            case'selall':self.files.forEach(function(x){self.selA(x.path);});self.render();self.updSt();break;
+            case'delsel':self.confirmDelSel();break;
+        }
+    },
+
+    toast:function(msg,type){
+        type=type||'in';var cm={ok:'tOk',er:'tEr',wn:'tWn',in:'tIn'};var im={ok:'fas fa-circle-check',er:'fas fa-circle-xmark',wn:'fas fa-triangle-exclamation',in:'fas fa-circle-info'};
+        var el=document.createElement('div');el.className='toast '+(cm[type]||'tIn');el.innerHTML='<span class="tI"><i class="'+(im[type]||im.in)+'"></i></span><span>'+U.esc(msg)+'</span>';
+        document.getElementById('toastC').appendChild(el);setTimeout(function(){el.classList.add('out');setTimeout(function(){el.remove();},300);},3500);
+    },
+
+    /* 长按 */
+    startLP:function(path,name,isDir){
+        var self=this;self.lf=false;self.lt=setTimeout(function(){
+            self.lf=true;if(navigator.vibrate)navigator.vibrate(25);self.ctx=path;
+            var items=[];
+            if(isDir)items.push({action:'open',icon:'fas fa-folder-open',label:'打开'});
+            else items.push({action:'download',icon:'fas fa-download',label:'下载'});
+            items.push({action:'rename',icon:'fas fa-pen',label:'重命名'});
+            items.push({action:'copypath',icon:'fas fa-copy',label:'复制路径'});
+            items.push({sep:true});
+            items.push({action:'delete',icon:'fas fa-trash-can',label:'删除',dg:true});
+            self.showSheet(name,items);
+        },CFG.longPressMs);
+    },
+    cancelLP:function(){if(this.lt){clearTimeout(this.lt);this.lt=null;}},
+
+    /* ===== 事件绑定 ===== */
+    bindAll:function(){
+        var self=this;
+
+        document.getElementById('btnLogin').addEventListener('click',function(){self.login(false);});
+        document.getElementById('btnMock').addEventListener('click',function(){self.login(true);});
+        document.getElementById('iPwd').addEventListener('keydown',function(e){if(e.key==='Enter')self.login(false);});
+        document.getElementById('btnOut').addEventListener('click',function(){self.logout();});
+
+        document.getElementById('dUp').addEventListener('click',function(){document.getElementById('fInp').click();});
+        document.getElementById('dMd').addEventListener('click',function(){self.startMd();});
+        document.getElementById('dRf').addEventListener('click',function(){self.load();});
+        document.getElementById('vL').addEventListener('click',function(){self.setView('list');});
+        document.getElementById('vG').addEventListener('click',function(){self.setView('grid');});
+
+        document.getElementById('mUp').addEventListener('click',function(){document.getElementById('fInp').click();});
+        document.getElementById('mMd').addEventListener('click',function(){self.startMd();});
+        document.getElementById('mRf').addEventListener('click',function(){self.load();});
+        document.getElementById('mVw').addEventListener('click',function(){self.togView();});
+        document.getElementById('mMr').addEventListener('click',function(){
+            self.ctx=null;var items=[{action:'upload',icon:'fas fa-cloud-arrow-up',label:'上传文件'},{action:'mkdir',icon:'fas fa-folder-plus',label:'新建文件夹'},{action:'refresh',icon:'fas fa-arrows-rotate',label:'刷新'},{sep:true},{action:'selall',icon:'fas fa-check-double',label:'全选'}];
+            if(self.selC()>0)items.push({action:'delsel',icon:'fas fa-trash-can',label:'删除选中 ('+self.selC()+')',dg:true});
+            self.showSheet('更多操作',items);
+        });
+
+        document.getElementById('fInp').addEventListener('change',function(e){self.upload(e.target.files);e.target.value='';});
+
+        var stm;function onSrch(e){clearTimeout(stm);var v=e.target.value;document.getElementById('sD').value=v;document.getElementById('sM').value=v;stm=setTimeout(function(){self.render();},200);}
+        document.getElementById('sD').addEventListener('input',onSrch);
+        document.getElementById('sM').addEventListener('input',onSrch);
+
+        document.getElementById('bc').addEventListener('click',function(e){var it=e.target.closest('.bcI');if(it&&!it.classList.contains('cur'))self.nav(it.dataset.bp);});
+
+        var fc=document.getElementById('fCon');
+
+        fc.addEventListener('click',function(e){
+            var ab=e.target.closest('[data-a]');if(ab){e.stopPropagation();var a=ab.dataset.a,p=ab.dataset.p,n=ab.dataset.n;if(a==='dl')self.dl(p);else if(a==='ren')self.startRen(p,n);else if(a==='del')self.confirmDel(p,n);return;}
+            var chk=e.target.closest('.chk');if(chk){var cp=chk.dataset.cp;if(self.selH(cp))self.selR(cp);else self.selA(cp);self.render();self.updSt();return;}
+            var row=e.target.closest('.fRow, .fGi');if(row){if(self.lf){self.lf=false;return;}var path=row.dataset.p,isDir=row.dataset.d==='true';if(e.ctrlKey||e.metaKey){if(self.selH(path))self.selR(path);else self.selA(path);self.render();self.updSt();}else self.open(path,isDir);}
+        });
+
+        fc.addEventListener('touchstart',function(e){var row=e.target.closest('.fRow, .fGi');if(!row||e.target.closest('.chk'))return;self.startLP(row.dataset.p,row.dataset.n,row.dataset.d==='true');},{passive:true});
+        fc.addEventListener('touchmove',function(){self.cancelLP();},{passive:true});
+        fc.addEventListener('touchend',function(){self.cancelLP();},{passive:true});
+        fc.addEventListener('touchcancel',function(){self.cancelLP();},{passive:true});
+
+        if(true){
+            var dc=0;var dov=document.getElementById('dropOv');
+            fc.addEventListener('dragenter',function(e){e.preventDefault();dc++;dov.classList.add('show');});
+            fc.addEventListener('dragleave',function(e){e.preventDefault();dc--;if(dc<=0){dc=0;dov.classList.remove('show');}});
+            fc.addEventListener('dragover',function(e){e.preventDefault();});
+            fc.addEventListener('drop',function(e){e.preventDefault();dc=0;dov.classList.remove('show');if(e.dataTransfer.files.length)self.upload(e.dataTransfer.files);});
+        }
+
+        fc.addEventListener('contextmenu',function(e){
+            if(U.mob())return;e.preventDefault();
+            var row=e.target.closest('.fRow, .fGi');
+            if(row){self.ctx=row.dataset.p;var isDir=row.dataset.d==='true';var m=document.getElementById('cmF');m.querySelector('[data-a="open"]').style.display=isDir?'':'none';m.querySelector('[data-a="download"]').style.display=isDir?'none':'';m.style.left=Math.min(e.clientX,window.innerWidth-200)+'px';m.style.top=Math.min(e.clientY,window.innerHeight-250)+'px';m.classList.add('show');document.getElementById('cmB').classList.remove('show');}
+            else{var m2=document.getElementById('cmB');m2.style.left=Math.min(e.clientX,window.innerWidth-200)+'px';m2.style.top=Math.min(e.clientY,window.innerHeight-150)+'px';m2.classList.add('show');document.getElementById('cmF').classList.remove('show');}
+        });
+        document.addEventListener('click',function(e){if(!e.target.closest('.cmenu'))document.querySelectorAll('.cmenu.show').forEach(function(m){m.classList.remove('show');});});
+        document.getElementById('cmF').addEventListener('click',function(e){var it=e.target.closest('.cmI');if(!it)return;document.getElementById('cmF').classList.remove('show');self.handleAct(it.dataset.a);});
+        document.getElementById('cmB').addEventListener('click',function(e){var it=e.target.closest('.cmI');if(!it)return;document.getElementById('cmB').classList.remove('show');self.handleAct(it.dataset.a);});
+
+        document.getElementById('asOv').addEventListener('click',function(e){if(e.target===document.getElementById('asOv'))self.hideSheet();});
+
+        document.getElementById('renO').addEventListener('click',function(){self.ren(self.ctx,document.getElementById('renI').value);});
+        document.getElementById('renI').addEventListener('keydown',function(e){if(e.key==='Enter')self.ren(self.ctx,this.value);if(e.key==='Escape')self.closeMod('modRen');});
+        document.getElementById('renC').addEventListener('click',function(){self.closeMod('modRen');});
+        document.getElementById('mdO').addEventListener('click',function(){self.mkdir(document.getElementById('mdI').value);});
+        document.getElementById('mdI').addEventListener('keydown',function(e){if(e.key==='Enter')self.mkdir(this.value);if(e.key==='Escape')self.closeMod('modMd');});
+        document.getElementById('mdC').addEventListener('click',function(){self.closeMod('modMd');});
+        document.getElementById('delC').addEventListener('click',function(){self.closeMod('modDel');});
+        document.querySelectorAll('.modal').forEach(function(m){m.addEventListener('click',function(e){if(e.target===m)m.classList.remove('show');});});
+
+        document.addEventListener('keydown',function(e){
+            if(!document.getElementById('mainView').classList.contains('active'))return;
+            if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA')return;
+            if(e.key==='Delete'&&self.selC()>0){e.preventDefault();self.confirmDelSel();}
+            if(e.key==='F5'||(e.ctrlKey&&e.key==='r')){e.preventDefault();self.load();}
+            if(e.key==='a'&&(e.ctrlKey||e.metaKey)){e.preventDefault();self.files.forEach(function(f){self.selA(f.path);});self.render();self.updSt();}
+            if(e.key==='Escape'){self.selCl();self.render();self.updSt();self.hideSheet();}
+            if(e.key==='Backspace'){e.preventDefault();var par=U.dir(self.path);if(par!==self.path)self.nav(par);}
+        });
+
+        window.addEventListener('resize',function(){if(U.mob()&&self.vm==='list')self.setView('grid');});
+    }
+};
+
+document.addEventListener('DOMContentLoaded',function(){A.start();});
+</script>
+</body>
+</html>

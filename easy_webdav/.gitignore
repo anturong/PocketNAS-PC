@@ -1,0 +1,26 @@
+## .NET
+bin/
+obj/
+*.user
+*.suo
+*.cache
+*.log
+.vs/
+.DS_Store
+
+## Build output
+publish/
+publish_selfcontained/
+publish_sc/
+publish_fd/
+dist/
+
+## Runtime
+webdav_config.json
+logs/
+
+## Test data
+testrun/
+
+## IDE
+*.sln.DotSettings.user
