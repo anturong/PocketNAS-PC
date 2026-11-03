@@ -72,8 +72,25 @@ git subtree pull --prefix=easy_webdav ew master --squash
 git subtree pull --prefix=SshHelper   ssh master --squash
 ```
 
+> `ew` / `ssh` 两个 remote 只用于拉取：它们的 push 地址已被设为 `PUSH-DISABLED`，
+> 这是刻意的——原仓库不做任何回写，误执行 push 只会报错，不会污染上游。
+
 > 注意：并入后对两个子目录内部做了结构性改造（窗口拆为 UserControl、输出类型改 Library），
 > 直接 subtree pull 上游会冲突，需要按改造后的结构手工合并。
+
+## 首次推送到新仓库
+
+在 GitHub 新建空仓库后（不要勾选初始化 README），执行：
+
+```bash
+cd D:/RAID_NAS备份/x/PocketNAS-PC
+git remote add origin https://github.com/<你的账号>/<新仓库名>.git
+git push -u origin master
+```
+
+推送前若要瘦身，可先剔除 SshHelper 历史里 62.5MB 的 `publish.zip`
+（会改写 commit sha，届时 `ew` / `ssh` 的同步基线需要重新建立）。
+
 
 ## 已知待办
 
