@@ -18,11 +18,12 @@ using System.Windows.Input;
 using System.Windows.Documents;
 using System.Windows.Media.Imaging;
 using System.Text.Json;
+using PocketNAS.Shared;
 using QRCoder;
 
 namespace SshHelper;
 
-public partial class MainWindow : Window
+public partial class SshView : System.Windows.Controls.UserControl
 {
     private enum LogColor { Cyan, Green, Yellow, Red, Default }
     private string PrivateKeyPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".ssh", "id_ed25519");
@@ -31,7 +32,7 @@ public partial class MainWindow : Window
     private string AuthKeysAdminPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "ssh", "administrators_authorized_keys");
     private string BakDir = Path.Combine(Path.GetDirectoryName(Environment.ProcessPath)!, "bak");
 
-    public MainWindow()
+    public SshView()
     {
         InitializeComponent();
         TxtUser.Text = Environment.UserName;
@@ -43,7 +44,6 @@ public partial class MainWindow : Window
     private async void BtnStart_Click(object sender, RoutedEventArgs e)
     {
         BtnStart.IsEnabled = false;
-        LogConsole.Document.Blocks.Clear();
         await Task.Run(() => RunFullConfiguration());
         BtnStart.IsEnabled = true;
     }
@@ -51,7 +51,6 @@ public partial class MainWindow : Window
     private async void BtnTest_Click(object sender, RoutedEventArgs e)
     {
         BtnTest.IsEnabled = false;
-        LogConsole.Document.Blocks.Clear();
         await Task.Run(() => TestSshConnection());
         BtnTest.IsEnabled = true;
     }
@@ -118,7 +117,6 @@ public partial class MainWindow : Window
         if (result != MessageBoxResult.Yes) return;
 
         BtnStart.IsEnabled = false;
-        LogConsole.Document.Blocks.Clear();
         await Task.Run(() => RunReplaceKey());
         BtnStart.IsEnabled = true;
     }
@@ -1096,7 +1094,7 @@ public partial class MainWindow : Window
             Width = px + 60,
             Height = px + 120,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            Owner = this,
+            Owner = Window.GetWindow(this),
             Background = System.Windows.Media.Brushes.White,
             ResizeMode = ResizeMode.NoResize,
         };
@@ -1124,23 +1122,16 @@ public partial class MainWindow : Window
         return bmp;
     }
 
-    // 线程安全的彩色日志追加
+    // 日志统一交给外壳的全局日志面板；这里保留原签名，调用点不用动
     private void AppendLog(string text, LogColor color)
     {
-        Dispatcher.Invoke(() =>
+        var level = color switch
         {
-            var run = new Run(text);
-            run.Foreground = color switch
-            {
-                LogColor.Green => System.Windows.Media.Brushes.LightGreen,
-                LogColor.Yellow => System.Windows.Media.Brushes.Yellow,
-                LogColor.Red => System.Windows.Media.Brushes.LightPink,
-                LogColor.Cyan => System.Windows.Media.Brushes.Cyan,
-                _ => System.Windows.Media.Brushes.White,
-            };
-            var paragraph = new Paragraph(run) { Margin = new Thickness(0) };
-            LogConsole.Document.Blocks.Add(paragraph);
-            LogConsole.ScrollToEnd();
-        });
+            LogColor.Green => LogLevel.Success,
+            LogColor.Yellow => LogLevel.Warn,
+            LogColor.Red => LogLevel.Error,
+            _ => LogLevel.Info,
+        };
+        LogService.Write("SSH", text.TrimEnd(), level);
     }
 }

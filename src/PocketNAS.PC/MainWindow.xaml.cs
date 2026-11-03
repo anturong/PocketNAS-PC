@@ -43,10 +43,18 @@ public partial class MainWindow : Window
         NavList.SelectedIndex = 0;
         LogService.Success("系统", "PocketNAS-PC 启动完成");
 
-        var shotIndex = Array.IndexOf(Environment.GetCommandLineArgs(), "--shot");
-        if (shotIndex >= 0 && shotIndex + 1 < Environment.GetCommandLineArgs().Length)
+        var args = Environment.GetCommandLineArgs();
+        var shotIndex = Array.IndexOf(args, "--shot");
+        if (shotIndex >= 0 && shotIndex + 1 < args.Length)
         {
-            var path = Environment.GetCommandLineArgs()[shotIndex + 1];
+            var moduleArg = args.FirstOrDefault(a => a.StartsWith("--module="));
+            if (moduleArg != null)
+            {
+                var index = _modules.ToList().FindIndex(m => m.Key == moduleArg["--module=".Length..]);
+                if (index >= 0) NavList.SelectedIndex = index;
+            }
+
+            var path = args[shotIndex + 1];
             Loaded += (_, _) => Dispatcher.BeginInvoke(() => RenderShot(path),
                 System.Windows.Threading.DispatcherPriority.ApplicationIdle);
         }
@@ -82,13 +90,13 @@ public partial class MainWindow : Window
 
         _modules.Add(new NavModule
         {
-            Key = "webdav", Title = "WebDAV", Status = "待接入",
+            Key = "webdav", Title = "WebDAV", Status = "就绪",
             Subtitle = "把本机目录通过 WebDAV 暴露给 PocketNAS",
             Dot = green, TitleColor = muted
         });
         _modules.Add(new NavModule
         {
-            Key = "ssh", Title = "SSH", Status = "待接入",
+            Key = "ssh", Title = "SSH", Status = "就绪",
             Subtitle = "sshd 一键配置、私钥部署与扫码导入",
             Dot = blue, TitleColor = muted
         });
@@ -106,8 +114,7 @@ public partial class MainWindow : Window
         });
 
         _views["webdav"] = new WebDavView();
-        _views["ssh"] = new ModulePlaceholder("SSH", "模块视图待迁入",
-            "再下一步把 SshHelper 的「连接信息 / 私钥管理 / 扫码导入」三张卡片搬到这里。");
+        _views["ssh"] = new SshHelper.SshView();
         _views["ftps"] = new ModulePlaceholder("FTPS", "预留模块",
             "位置已留好，等确定 FTPS 服务实现方案后再填充。");
         _views["dlna"] = new ModulePlaceholder("DLNA", "预留模块",
@@ -145,21 +152,23 @@ public partial class MainWindow : Window
 
     private void AppendEntry(LogEntry entry)
     {
-        var blue = (Brush)FindResource("Accent.Blue");
-        var hint = (Brush)FindResource("Fg.Hint");
-        var text = (Brush)FindResource("Fg.Text");
-
         var messageBrush = entry.Level switch
         {
-            LogLevel.Success => (Brush)FindResource("Accent.Green"),
-            LogLevel.Warn => (Brush)FindResource("Accent.Amber"),
-            LogLevel.Error => (Brush)FindResource("Accent.Red"),
-            _ => text
+            LogLevel.Success => new SolidColorBrush(Color.FromRgb(0x3f, 0xb9, 0x50)),
+            LogLevel.Warn => new SolidColorBrush(Color.FromRgb(0xd2, 0x99, 0x22)),
+            LogLevel.Error => new SolidColorBrush(Color.FromRgb(0xf8, 0x51, 0x49)),
+            _ => new SolidColorBrush(Color.FromRgb(0xe6, 0xed, 0xf3))
         };
+        messageBrush.Freeze();
+
+        var timeBrush = new SolidColorBrush(Color.FromRgb(0x58, 0xa6, 0xff));
+        timeBrush.Freeze();
+        var moduleBrush = new SolidColorBrush(Color.FromRgb(0x6e, 0x76, 0x81));
+        moduleBrush.Freeze();
 
         var paragraph = new Paragraph { Margin = new Thickness(0, 0, 0, 3) };
-        paragraph.Inlines.Add(new Run($"[{entry.Time:HH:mm:ss}] ") { Foreground = blue });
-        paragraph.Inlines.Add(new Run($"{entry.Module} ") { Foreground = hint });
+        paragraph.Inlines.Add(new Run($"[{entry.Time:HH:mm:ss}] ") { Foreground = timeBrush });
+        paragraph.Inlines.Add(new Run($"{entry.Module} ") { Foreground = moduleBrush });
         paragraph.Inlines.Add(new Run(entry.Message) { Foreground = messageBrush });
 
         LogConsole.Document.Blocks.Add(paragraph);
