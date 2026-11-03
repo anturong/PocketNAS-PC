@@ -101,7 +101,9 @@ git push -u origin master
 
 ## 已知待办
 
+- **DLNA 模块**：方案未定，计划存档在 [docs/dlna-plan.md](docs/dlna-plan.md)（系统媒体流 vs 内嵌 MiniDLNA）。
 - 状态胶囊固定显示「就绪」，尚未接真实的 sshd / WebDAV 服务状态。
 - IP 选择下拉在网卡名较长时可能显示不全；单纯调大宽度会顶乱版面，
   后续考虑改成弹窗式选择器（点开列出「IP · 网卡类型 · 状态」再确认）。
+- `service\WebDAVService.exe` 需在服务停止后重新发布一次（当前版本缺 ObjectDisposedException 修正）。
 - 原 `easy_webdav/WebDAVService.sln` 仍存在，其中 WebDAVConfigurator 已变为类库。
