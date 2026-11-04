@@ -136,6 +136,18 @@ public partial class FtpsView : UserControl
             TxtRootDir.Text = _options.ResolvedRootDir();
             UpdateLinks();
             Log("配置已保存，重启服务后生效", LogLevel.Success);
+
+            // 与 WebDAV 一致：保存时就把端口规则同步掉，不用非得重装服务
+            if (Elevation.IsRunningAsAdmin())
+            {
+                FtpsFirewall.Apply(_options);
+                Log($"防火墙规则已更新（{_options.ExplicitPort} / {_options.ImplicitPort} / 被动 {_options.PasvMin}-{_options.PasvMax}）",
+                    LogLevel.Success);
+            }
+            else
+            {
+                Log("防火墙规则需管理员权限，安装服务时会自动放行", LogLevel.Warn);
+            }
         }
         catch (Exception ex)
         {

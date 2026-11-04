@@ -6,7 +6,8 @@ namespace FtpsServer;
 /// FTPS 的防火墙规则：显式端口、隐式端口、被动端口段。
 /// 用安全组统一管理，卸载时按组一次性清理。
 /// </summary>
-internal static class FtpsFirewall
+[System.Runtime.Versioning.SupportedOSPlatform("windows")]
+public static class FtpsFirewall
 {
     private const string RuleGroup = "PocketNAS FTPS";
 
