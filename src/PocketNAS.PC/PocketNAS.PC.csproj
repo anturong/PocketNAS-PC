@@ -10,10 +10,18 @@
     <RootNamespace>PocketNAS.PC</RootNamespace>
     <Version>1.0.0</Version>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- 与手机端同一套品牌标记：深色圆角方块 + 橙色 p 环 + 白色节点 -->
+    <ApplicationIcon>Assets\pocketnas.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="QRCoder" Version="1.6.0" />
+  </ItemGroup>
+
+  <!-- 窗口标题栏图标和侧栏品牌标记要当资源打进程序集，ApplicationIcon 只影响 exe 的外观 -->
+  <ItemGroup>
+    <Resource Include="Assets\pocketnas.ico" />
+    <Resource Include="Assets\logo-mark.png" />
   </ItemGroup>
 
   <ItemGroup>
