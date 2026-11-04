@@ -17,21 +17,30 @@ namespace FtpsServer;
 /// </summary>
 public static class Program
 {
-    // ================= 可配置 =================
-    static string RootDir = @"C:\FTPSroot";
-    static string ListenIp = "192.168.3.200";
-    static int ListenPort = 21;              // 显式 FTPS (AUTH TLS)
-    static int ImplicitPort = 990;           // 隐式 FTPS (直接 TLS，VLC 默认走这里)
-    static string User = "ftpusr";
-    static string Pass = "Ftp123456";        // 无特殊字符，避免 URL 转义问题
+    // 由 ftps_config.json 填充，见 FtpsOptions
+    static FtpsOptions Options = new();
+    static string RootDir = "";
+    static string ListenIp = "0.0.0.0";
+    static int ListenPort = 21;
+    static int ImplicitPort = 990;
     static int PasvMin = 50000, PasvMax = 51000;
-    static string CertPath = Path.Combine(AppContext.BaseDirectory, "ftps_cert.pfx");
-    // ==========================================
+    static string CertPath = "";
 
     public static async Task Main(string[] args)
     {
-        if (args.Length >= 1 && int.TryParse(args[0], out int p)) ListenPort = p;
-        if (args.Length >= 2) RootDir = Path.GetFullPath(args[1]);
+        var configPath = args.Length >= 1
+            ? Path.GetFullPath(args[0])
+            : Path.Combine(AppContext.BaseDirectory, "ftps_config.json");
+
+        Options = FtpsOptions.Load(configPath);
+        RootDir = Options.ResolvedRootDir();
+        ListenIp = Options.ListenIp;
+        ListenPort = Options.ExplicitPort;
+        ImplicitPort = Options.ImplicitPort;
+        PasvMin = Options.PasvMin;
+        PasvMax = Options.PasvMax;
+        CertPath = Options.ResolvedCertPath();
+
         Directory.CreateDirectory(RootDir);
 
         var cert = LoadOrCreateCert();
@@ -45,7 +54,7 @@ public static class Program
         Console.WriteLine("==============================================");
         Console.WriteLine($" 显式FTPS: ftps://{ListenIp}:{ListenPort}/  (AUTH TLS)");
         Console.WriteLine($" 隐式FTPS: ftps://{ListenIp}:{ImplicitPort}/  (VLC 默认用这个)");
-        Console.WriteLine($" 用户: {User}   密码: {Pass}");
+        Console.WriteLine($" 用户数: {Options.Users.Count}");
         Console.WriteLine($" 根目录: {RootDir}");
         Console.WriteLine($" 被动端口: {PasvMin}-{PasvMax}");
         Console.WriteLine($" 证书: {CertPath}");
@@ -97,17 +106,43 @@ public static class Program
         }
         Console.WriteLine("[*] 生成自签名证书(10年)...");
         using var rsa = RSA.Create(2048);
-        var req = new CertificateRequest($"CN={ListenIp}", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        var certHost = ListenIp is "0.0.0.0" or "+" or "*" ? Environment.MachineName : ListenIp;
+        var req = new CertificateRequest($"CN={certHost}", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
         req.CertificateExtensions.Add(new X509BasicConstraintsExtension(false, false, 0, false));
         req.CertificateExtensions.Add(new X509KeyUsageExtension(X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.KeyEncipherment, false));
         var san = new SubjectAlternativeNameBuilder();
-        san.AddIpAddress(IPAddress.Parse(ListenIp));
+        foreach (var ip in CertSubjectIps())
+            san.AddIpAddress(ip);
+        san.AddDnsName("localhost");
         req.CertificateExtensions.Add(san.Build());
         var cert = req.CreateSelfSigned(DateTimeOffset.Now, DateTimeOffset.Now.AddYears(10));
         var pfx = cert.Export(X509ContentType.Pfx);
         File.WriteAllBytes(CertPath, pfx);
         Console.WriteLine($"[*] 证书已生成");
         return new X509Certificate2(pfx);
+    }
+
+    /// <summary>证书里要包含的 IP：指定了监听 IP 就用它，否则列出所有本机 IPv4</summary>
+    static IEnumerable<IPAddress> CertSubjectIps()
+    {
+        if (ListenIp is not ("0.0.0.0" or "+" or "*") && IPAddress.TryParse(ListenIp, out var fixedIp))
+        {
+            yield return fixedIp;
+            yield break;
+        }
+
+        yield return IPAddress.Loopback;
+        foreach (var nic in System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces())
+        {
+            if (nic.OperationalStatus != System.Net.NetworkInformation.OperationalStatus.Up) continue;
+            foreach (var ua in nic.GetIPProperties().UnicastAddresses)
+            {
+                if (ua.Address.AddressFamily != AddressFamily.InterNetwork) continue;
+                var s = ua.Address.ToString();
+                if (s.StartsWith("127.") || s.StartsWith("169.254.")) continue;
+                yield return ua.Address;
+            }
+        }
     }
 
     // ================= 会话 =================
@@ -152,7 +187,7 @@ public static class Program
                 switch (cmd)
                 {
                     // ---------- TLS ----------
-                    case "AUTH" when arg.ToUpperInvariant() == "TLS":
+                    case "AUTH" when arg.ToUpperInvariant() is "TLS" or "SSL":
                         if (tlsActive) { await session.SendAsync("503 Already using TLS."); break; }
                         await session.SendAsync("234 Proceed with TLS negotiation.");
                         await session.UpgradeToTls(cert);
@@ -175,15 +210,15 @@ public static class Program
                     // ---------- 认证 ----------
                     case "USER":
                         if (authenticated) { await session.SendAsync("503 Already logged in."); break; }
-                        if (!tlsActive) { await session.SendAsync("534 Policy requires TLS, send AUTH TLS first."); break; }
+                        if (Options.RequireTls && !tlsActive) { await session.SendAsync("534 Policy requires TLS, send AUTH TLS first."); break; }
                         pendingUser = arg;
                         await session.SendAsync("331 Password required for " + arg + ".");
                         break;
 
                     case "PASS":
                         if (authenticated) { await session.SendAsync("503 Already logged in."); break; }
-                        if (!tlsActive) { await session.SendAsync("534 Policy requires TLS, send AUTH TLS first."); break; }
-                        if (pendingUser == User && arg == Pass)
+                        if (Options.RequireTls && !tlsActive) { await session.SendAsync("534 Policy requires TLS, send AUTH TLS first."); break; }
+                        if (pendingUser != null && Options.Users.Any(u => u.Username == pendingUser && u.Password == arg))
                         {
                             authenticated = true;
                             await session.SendAsync("230 Logged in.");
@@ -198,14 +233,14 @@ public static class Program
                     // ---------- 被动模式 ----------
                     case "PASV":
                         if (!authenticated) { await session.SendAsync("530 Not logged in."); break; }
-                        await session.OpenPassiveAsync(PasvMin, PasvMax, ListenIp, cmd);
+                        await session.OpenPassiveAsync(PasvMin, PasvMax, cmd);
                         break;
 
                     case "EPSV":
                         if (!authenticated) { await session.SendAsync("530 Not logged in."); break; }
                         // EPSV ALL: 声明支持EPSV，回复200即可，不打开监听
                         if (arg.ToUpperInvariant() == "ALL") { await session.SendAsync("200 EPSV ALL ok."); break; }
-                        await session.OpenPassiveAsync(PasvMin, PasvMax, ListenIp, cmd);
+                        await session.OpenPassiveAsync(PasvMin, PasvMax, cmd);
                         break;
 
                     case "ABOR":
@@ -568,7 +603,7 @@ public class Session : IAsyncDisposable
         _stream = _ssl;
     }
 
-    public async Task OpenPassiveAsync(int min, int max, string listenIp, string cmd)
+    public async Task OpenPassiveAsync(int min, int max, string cmd)
     {
         try
         {
@@ -592,7 +627,14 @@ public class Session : IAsyncDisposable
                 await SendAsync($"229 Entering Extended Passive Mode (|||{port}|).");
             else
             {
-                var ip = listenIp.Replace('.', ',');
+                // 227 里要给客户端一个它真能连上的地址：取这条控制连接的本端 IP，
+                // 而不是配置里的监听地址（监听 0.0.0.0 时会给出无效的 0,0,0,0）
+                var local = (_client.Client.LocalEndPoint as IPEndPoint)?.Address;
+                if (local == null || local.Equals(IPAddress.Any) || local.Equals(IPAddress.IPv6Any))
+                    local = IPAddress.Loopback;
+                if (local.AddressFamily == AddressFamily.InterNetworkV6)
+                    local = local.MapToIPv4();
+                var ip = local.ToString().Replace('.', ',');
                 await SendAsync($"227 Entering Passive Mode ({ip},{port / 256},{port % 256}).");
             }
         }
