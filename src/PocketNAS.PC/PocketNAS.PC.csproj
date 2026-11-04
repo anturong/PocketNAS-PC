@@ -32,5 +32,18 @@
              Targets="Publish"
              Properties="Configuration=$(Configuration);PublishDir=$(WebDavSvcPublishDir)" />
   </Target>
+  <!-- 把 FTPS 服务发布到输出目录的 service\ftps：安装服务时从这里取 exe -->
+  <Target Name="PublishFtpsService" AfterTargets="Build"
+          Condition="'$(SkipFtpsService)' != 'true'"
+          Inputs="$(MSBuildThisFileDirectory)..\PocketNAS.FtpsService\**\*.cs;$(MSBuildThisFileDirectory)..\PocketNAS.Ftps\**\*.cs"
+          Outputs="$(OutDir)service\ftps\FtpsService.exe">
+    <Message Importance="high" Text="发布 FTPS 服务 → $(OutDir)service\ftps" />
+    <PropertyGroup>
+      <FtpsSvcPublishDir>$([System.IO.Path]::GetFullPath('$(OutDir)service\ftps'))\</FtpsSvcPublishDir>
+    </PropertyGroup>
+    <MSBuild Projects="$(MSBuildThisFileDirectory)..\PocketNAS.FtpsService\PocketNAS.FtpsService.csproj"
+             Targets="Publish"
+             Properties="Configuration=$(Configuration);PublishDir=$(FtpsSvcPublishDir)" />
+  </Target>
 
 </Project>
