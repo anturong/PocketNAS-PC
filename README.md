@@ -9,7 +9,7 @@ PocketNAS 的 Windows 桌面端合集：把原先分散的 WebDAV 管理器和 S
 | ① | WebDAV | 已接入 | easy_webdav（v1.2.4） |
 | ② | SSH | 已接入 | SshHelper（v1.04） |
 | ③ | FTPS | 已接入 | FtpsServer（新写） |
-| ④ | DLNA | 预留，方向调整为投屏接收，见计划 | — |
+| ④ | DLNA | 预留，方向已存档（投屏接收），未开工 | — |
 
 ## 界面
 
@@ -158,7 +158,8 @@ git push -u origin master
 
 ## 已知待办
 
-- **DLNA 模块**：方案未定，计划存档在 [docs/dlna-plan.md](docs/dlna-plan.md)（系统媒体流 vs 内嵌 MiniDLNA）。
+- **DLNA 模块**：未开工，方向已存档在 [docs/dlna-plan.md](docs/dlna-plan.md)
+  （手机投送 → PC 接住 → 播放器读取；已否决的路线与开工前必须先回答的 4 个问题都在里面）。
 - **FTPS 证书**：当前只能自动生成，无管理入口；方案存档在 [docs/ftps-cert-plan.md](docs/ftps-cert-plan.md)
   （核心是二维码下发证书指纹做 TOFU，绕开手机装证书的麻烦）。
 - 状态胶囊固定显示「就绪」，尚未接真实的 sshd / WebDAV 服务状态。
