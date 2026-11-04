@@ -124,6 +124,7 @@ public static class Program
 
             bool tlsActive = false;
             bool authenticated = false;
+            bool readOnly = false;
             bool dataTls = false;
             string? pendingUser = null;
             string cwd = "/";
@@ -184,9 +185,13 @@ public static class Program
                     case "PASS":
                         if (authenticated) { await session.SendAsync("503 Already logged in."); break; }
                         if (Options.RequireTls && !tlsActive) { await session.SendAsync("534 Policy requires TLS, send AUTH TLS first."); break; }
-                        if (pendingUser != null && Options.Users.Any(u => u.Username == pendingUser && u.Password == arg))
+                        var matched = pendingUser == null
+                            ? null
+                            : Options.Users.FirstOrDefault(u => u.Username == pendingUser && u.Password == arg);
+                        if (matched != null)
                         {
                             authenticated = true;
+                            readOnly = matched.ReadOnly;
                             await session.SendAsync("230 Logged in.");
                         }
                         else
@@ -323,6 +328,7 @@ public static class Program
                     case "STOR":
                         {
                             if (!authenticated) { await session.SendAsync("530 Not logged in."); break; }
+                            if (readOnly) { await session.SendAsync("550 Permission denied: read-only account."); break; }
                             var f = ResolvePath(cwd, arg, RootDir);
                             var dir = Path.GetDirectoryName(f);
                             if (dir == null || !Directory.Exists(dir)) { await session.SendAsync("550 Directory not found."); break; }
@@ -397,6 +403,7 @@ public static class Program
                     case "DELE":
                         {
                             if (!authenticated) { await session.SendAsync("530 Not logged in."); break; }
+                            if (readOnly) { await session.SendAsync("550 Permission denied: read-only account."); break; }
                             var f = ResolvePath(cwd, arg, RootDir);
                             if (File.Exists(f)) { File.Delete(f); await session.SendAsync("250 File deleted."); }
                             else await session.SendAsync("550 File not found.");
@@ -406,6 +413,7 @@ public static class Program
                     case "MKD":
                         {
                             if (!authenticated) { await session.SendAsync("530 Not logged in."); break; }
+                            if (readOnly) { await session.SendAsync("550 Permission denied: read-only account."); break; }
                             var d = ResolvePath(cwd, arg, RootDir);
                             try { Directory.CreateDirectory(d); await session.SendAsync("257 Directory created."); }
                             catch { await session.SendAsync("550 Can't create directory."); }
