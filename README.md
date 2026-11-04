@@ -74,6 +74,24 @@ PocketNAS-PC.exe --shot out.png --module=ssh
 **密码**：WebDAV 用户密码默认掩码显示，右侧眼睛按钮切换明文/掩码，旁边「随机」按钮生成
 16 位强密码（大小写 + 数字 + 符号，排除 0/O、1/l/I 等易混字符，Fisher-Yates 洗牌避免位置规律）。
 
+## Debug / Release 与配置
+
+每个输出目录都是**自包含**的：配置按程序自身位置推算，整个目录可以整体搬走。
+
+```
+bin\Debug\net8.0-windows\service\ftps\ftps_config.json     ← Debug 的配置
+bin\Release\net8.0-windows\service\ftps\ftps_config.json   ← Release 的配置
+```
+
+两份互不影响，改动 Debug 的配置不会影响 Release，反之亦然。
+
+**唯一会跨目录的是 Windows 服务**：`WebDAVService` / `FtpsService` 都是全局唯一的，
+服务指向的是**最后一次点「安装服务」时所在的那个目录**。在两个版本之间切换装服务时，
+实际生效的配置会跟着切过去。
+
+调试时如果遇到「改了配置却不生效」，先确认服务当前跑的是哪个目录：
+打开「服务」管理器（`services.msc`），右键对应服务 → 属性 → 看「可执行文件的路径」。
+
 ## 提交约定
 
 这个项目按功能持续迭代，**一个功能一个 commit**，不做「攒一批一起提交」。
