@@ -321,7 +321,10 @@ public partial class FtpsView : UserControl
         }
 
         var host = DisplayHost();
-        var port = int.TryParse(TxtImplicitPort.Text, out var p) ? p : _options.ImplicitPort;
+
+        // 手机端走显式 FTPS：连上后先 AUTH TLS 再登录，也就是 21 端口那条
+        var port = int.TryParse(TxtExplicitPort.Text, out var ep) ? ep : _options.ExplicitPort;
+        var implicitPort = int.TryParse(TxtImplicitPort.Text, out var ip) ? ip : _options.ImplicitPort;
 
         var payload = JsonSerializer.Serialize(new
         {
@@ -330,13 +333,16 @@ public partial class FtpsView : UserControl
             name = Environment.MachineName,
             host,
             port,
-            implicit_tls = true,
+            tls = "explicit",
+            implicit_tls = false,
+            explicit_port = port,
+            implicit_port = implicitPort,
             user = user.Username,
             pass = user.Password,
         });
 
-        ShowQrWindow(payload, $"{user.Username} @ ftps://{host}:{port}/");
-        Log($"二维码已生成：{user.Username} @ ftps://{host}:{port}/（含密码）", LogLevel.Success);
+        ShowQrWindow(payload, $"{user.Username} @ ftps://{host}:{port}/（显式 TLS）");
+        Log($"二维码已生成：{user.Username} @ ftps://{host}:{port}/（显式 TLS，含密码）", LogLevel.Success);
     }
 
     /// <summary>二维码只在弹窗里显示，主界面不留含凭据的图像</summary>
