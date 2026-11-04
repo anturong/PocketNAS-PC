@@ -17,96 +17,62 @@ namespace FtpsServer;
 /// </summary>
 public static class Program
 {
-    // 由 ftps_config.json 填充，见 FtpsOptions
-    static FtpsOptions Options = new();
-    static string RootDir = "";
-    static string ListenIp = "0.0.0.0";
-    static int ListenPort = 21;
-    static int ImplicitPort = 990;
-    static int PasvMin = 50000, PasvMax = 51000;
-    static string CertPath = "";
+    // 由 ftps_config.json 填充，见 FtpsOptions；同一进程只跑一个实例
+    internal static FtpsOptions Options = new();
+    internal static string RootDir = "";
+    internal static int PasvMin = 50000, PasvMax = 51000;
+    internal static string CertPath = "";
 
+    /// <summary>控制台模式：便于脱离外壳单独验证。正式使用由外壳托管 FtpsServerHost。</summary>
     public static async Task Main(string[] args)
     {
         var configPath = args.Length >= 1
             ? Path.GetFullPath(args[0])
             : Path.Combine(AppContext.BaseDirectory, "ftps_config.json");
 
-        Options = FtpsOptions.Load(configPath);
-        RootDir = Options.ResolvedRootDir();
-        ListenIp = Options.ListenIp;
-        ListenPort = Options.ExplicitPort;
-        ImplicitPort = Options.ImplicitPort;
-        PasvMin = Options.PasvMin;
-        PasvMax = Options.PasvMax;
-        CertPath = Options.ResolvedCertPath();
+        var host = new FtpsServerHost(FtpsOptions.Load(configPath), Console.WriteLine);
+        Console.CancelKeyPress += (_, e) => { e.Cancel = true; _ = host.StopAsync(); };
 
+        await host.StartAsync();
+        Program.Log("==============================================");
+        Program.Log($" 显式FTPS: ftps://{host.ExplicitEndpoint}  (AUTH TLS)");
+        Program.Log($" 隐式FTPS: ftps://{host.ImplicitEndpoint}  (VLC 默认用这个)");
+        Program.Log($" 用户数: {Options.Users.Count}");
+        Program.Log($" 根目录: {RootDir}");
+        Program.Log($" 被动端口: {host.PasvRange}");
+        Program.Log($" 证书: {CertPath}");
+        Program.Log(" Ctrl+C 停止");
+        Program.Log("==============================================");
+
+        await host.WaitForShutdownAsync();
+    }
+
+    /// <summary>把配置装载进协议层使用的静态字段（协议实现按单实例假设编写）</summary>
+    internal static Action<string> LogSink = message => Console.WriteLine(message);
+
+    internal static void Log(string message) => LogSink(message);
+
+    internal static void ApplyOptions(FtpsOptions options)
+    {
+        Options = options;
+        RootDir = options.ResolvedRootDir();
+        PasvMin = options.PasvMin;
+        PasvMax = options.PasvMax;
+        CertPath = options.ResolvedCertPath();
         Directory.CreateDirectory(RootDir);
-
-        var cert = LoadOrCreateCert();
-
-        // 显式 FTPS 监听器 (21)
-        var listener = new TcpListener(IPAddress.Parse(ListenIp), ListenPort);
-        listener.Start();
-        // 隐式 FTPS 监听器 (990，VLC 默认)
-        var implicitListener = new TcpListener(IPAddress.Parse(ListenIp), ImplicitPort);
-        implicitListener.Start();
-        Console.WriteLine("==============================================");
-        Console.WriteLine($" 显式FTPS: ftps://{ListenIp}:{ListenPort}/  (AUTH TLS)");
-        Console.WriteLine($" 隐式FTPS: ftps://{ListenIp}:{ImplicitPort}/  (VLC 默认用这个)");
-        Console.WriteLine($" 用户数: {Options.Users.Count}");
-        Console.WriteLine($" 根目录: {RootDir}");
-        Console.WriteLine($" 被动端口: {PasvMin}-{PasvMax}");
-        Console.WriteLine($" 证书: {CertPath}");
-        Console.WriteLine(" Ctrl+C 停止");
-        Console.WriteLine("==============================================");
-
-        using var cts = new CancellationTokenSource();
-        Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
-
-        // 并行接受两个端口的连接
-        var acceptExplicit = Task.Run(async () =>
-        {
-            while (!cts.IsCancellationRequested)
-            {
-                try
-                {
-                    var client = await listener.AcceptTcpClientAsync(cts.Token);
-                    _ = Task.Run(() => HandleClient(client, cert, cts.Token, implicitTls: false), cts.Token);
-                }
-                catch (OperationCanceledException) { break; }
-                catch (Exception ex) { Console.WriteLine($"[!] 显式Accept: {ex.Message}"); }
-            }
-        }, cts.Token);
-
-        var acceptImplicit = Task.Run(async () =>
-        {
-            while (!cts.IsCancellationRequested)
-            {
-                try
-                {
-                    var client = await implicitListener.AcceptTcpClientAsync(cts.Token);
-                    _ = Task.Run(() => HandleClient(client, cert, cts.Token, implicitTls: true), cts.Token);
-                }
-                catch (OperationCanceledException) { break; }
-                catch (Exception ex) { Console.WriteLine($"[!] 隐式Accept: {ex.Message}"); }
-            }
-        }, cts.Token);
-
-        await Task.WhenAll(acceptExplicit, acceptImplicit);
     }
 
     // ================= 证书 =================
-    static X509Certificate2 LoadOrCreateCert()
+    internal static X509Certificate2 LoadOrCreateCert()
     {
         if (File.Exists(CertPath))
         {
-            Console.WriteLine($"[*] 使用已有证书");
+            Program.Log($"[*] 使用已有证书");
             return new X509Certificate2(CertPath, (string?)null, X509KeyStorageFlags.Exportable);
         }
-        Console.WriteLine("[*] 生成自签名证书(10年)...");
+        Program.Log("[*] 生成自签名证书(10年)...");
         using var rsa = RSA.Create(2048);
-        var certHost = ListenIp is "0.0.0.0" or "+" or "*" ? Environment.MachineName : ListenIp;
+        var certHost = Options.ListenIp is "0.0.0.0" or "+" or "*" ? Environment.MachineName : Options.ListenIp;
         var req = new CertificateRequest($"CN={certHost}", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
         req.CertificateExtensions.Add(new X509BasicConstraintsExtension(false, false, 0, false));
         req.CertificateExtensions.Add(new X509KeyUsageExtension(X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.KeyEncipherment, false));
@@ -118,14 +84,14 @@ public static class Program
         var cert = req.CreateSelfSigned(DateTimeOffset.Now, DateTimeOffset.Now.AddYears(10));
         var pfx = cert.Export(X509ContentType.Pfx);
         File.WriteAllBytes(CertPath, pfx);
-        Console.WriteLine($"[*] 证书已生成");
+        Program.Log($"[*] 证书已生成");
         return new X509Certificate2(pfx);
     }
 
     /// <summary>证书里要包含的 IP：指定了监听 IP 就用它，否则列出所有本机 IPv4</summary>
     static IEnumerable<IPAddress> CertSubjectIps()
     {
-        if (ListenIp is not ("0.0.0.0" or "+" or "*") && IPAddress.TryParse(ListenIp, out var fixedIp))
+        if (Options.ListenIp is not ("0.0.0.0" or "+" or "*") && IPAddress.TryParse(Options.ListenIp, out var fixedIp))
         {
             yield return fixedIp;
             yield break;
@@ -146,10 +112,10 @@ public static class Program
     }
 
     // ================= 会话 =================
-    static async Task HandleClient(TcpClient client, X509Certificate2 cert, CancellationToken ct, bool implicitTls)
+    internal static async Task HandleClient(TcpClient client, X509Certificate2 cert, CancellationToken ct, bool implicitTls)
     {
         string remote = client.Client.RemoteEndPoint?.ToString() ?? "?";
-        Console.WriteLine($"[+] {remote} ({(implicitTls ? "隐式990" : "显式21")})");
+        Program.Log($"[+] {remote} ({(implicitTls ? "隐式990" : "显式21")})");
         Session? session = null;
         try
         {
@@ -170,7 +136,7 @@ public static class Program
                 await session.UpgradeToTls(cert);
                 tlsActive = true;
                 dataTls = true;
-                Console.WriteLine($"[{remote}] 隐式TLS已建立");
+                Program.Log($"[{remote}] 隐式TLS已建立");
             }
             await session.SendAsync("220 FTPS Server ready.");
 
@@ -178,7 +144,7 @@ public static class Program
             {
                 string? line = await session.ReadLineAsync();
                 if (line == null) break;
-                Console.WriteLine($"[{remote}] {line}");
+                Program.Log($"[{remote}] {line}");
 
                 var sp = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
                 var cmd = sp[0].ToUpperInvariant();
@@ -193,7 +159,7 @@ public static class Program
                         await session.UpgradeToTls(cert);
                         tlsActive = true;
                         dataTls = true;
-                        Console.WriteLine($"[{remote}] TLS 已建立");
+                        Program.Log($"[{remote}] TLS 已建立");
                         break;
 
                     case "PBSZ":
@@ -332,7 +298,7 @@ public static class Program
                                     if (restOffset > 0)
                                     {
                                         fs.Seek(restOffset, SeekOrigin.Begin);
-                                        Console.WriteLine($"[{remote}] REST 从偏移 {restOffset} 续传");
+                                        Program.Log($"[{remote}] REST 从偏移 {restOffset} 续传");
                                     }
                                     if (type == 'A') { var txt = await new StreamReader(fs, Encoding.UTF8).ReadToEndAsync(ct); txt = txt.Replace("\r\n", "\n").Replace("\n", "\r\n"); var b = Encoding.UTF8.GetBytes(txt); await dp.WriteAsync(b, ct); }
                                     else await fs.CopyToAsync(dp, ct);
@@ -344,7 +310,7 @@ public static class Program
                                 // VLC 打开URL时会做探测传输(读一点就关数据通道)，
                                 // 必须立即回 226 表示传输完成(RETR最终响应)，否则VLC判定文件不可读。
                                 // 随后的 ABOR 会另回 226 (VLC ftp_StopStream 第4步需要)。
-                                Console.WriteLine($"[{remote}] 数据通道被客户端提前关闭 (VLC seek 正常行为)");
+                                Program.Log($"[{remote}] 数据通道被客户端提前关闭 (VLC seek 正常行为)");
                             }
                             restOffset = 0;
                             if (dp is SslStream sslDp) { try { await sslDp.ShutdownAsync(); } catch { } }
@@ -454,11 +420,11 @@ public static class Program
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[{remote}] 错误: {ex.Message}");
+            Program.Log($"[{remote}] 错误: {ex.Message}");
         }
         finally
         {
-            Console.WriteLine($"[-] {remote}");
+            Program.Log($"[-] {remote}");
             if (session != null) { try { await session.DisposeAsync(); } catch { } }
             try { client.Close(); } catch { }
         }
@@ -571,7 +537,7 @@ public class Session : IAsyncDisposable
         var b = Encoding.UTF8.GetBytes(msg + "\r\n");
         await _stream.WriteAsync(b, _ct);
         await _stream.FlushAsync(_ct);
-        Console.WriteLine($"[{(_ssl != null ? "TLS" : "RAW")}] => {msg.Split('\n')[0]}");
+        Program.Log($"[{(_ssl != null ? "TLS" : "RAW")}] => {msg.Split('\n')[0]}");
     }
 
     public async Task<string?> ReadLineAsync()
@@ -640,7 +606,7 @@ public class Session : IAsyncDisposable
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[!] PASV: {ex.Message}");
+            Program.Log($"[!] PASV: {ex.Message}");
             await SendAsync("425 Can't open passive connection.");
         }
     }
