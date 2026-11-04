@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.Versioning;
 using System.ServiceProcess;
 
 namespace PocketNAS.Shared;
@@ -7,6 +8,7 @@ namespace PocketNAS.Shared;
 /// 通用的 Windows 服务管理：用系统自带 sc.exe 注册/删除，不依赖 nssm 等外部工具。
 /// WebDAV 与 FTPS 两个模块共用，模块特有的善后动作（防火墙、证书绑定）通过重写钩子实现。
 /// </summary>
+[SupportedOSPlatform("windows")]
 public class WindowsServiceHelper
 {
     public string ServiceName { get; }
@@ -25,10 +27,10 @@ public class WindowsServiceHelper
     }
 
     /// <summary>注册完成、启动之前的额外动作（放行防火墙端口等）</summary>
-    protected virtual void OnInstalled() { }
+    protected virtual void OnInstalled(string baseDir) { }
 
     /// <summary>卸载之前的额外动作（清理证书绑定等）</summary>
-    protected virtual void OnUninstalling() { }
+    protected virtual void OnUninstalling(string baseDir) { }
 
     public void InstallService(string baseDir)
     {
@@ -47,13 +49,13 @@ public class WindowsServiceHelper
         RunSc($"description {ServiceName} \"{Description}\"");
         RunSc($"failure {ServiceName} reset= 86400 actions= restart/5000/restart/5000/restart/5000");
 
-        OnInstalled();
+        OnInstalled(baseDir);
         StartService();
     }
 
-    public void UninstallService()
+    public void UninstallService(string? baseDir = null)
     {
-        OnUninstalling();
+        OnUninstalling(baseDir ?? AppContext.BaseDirectory.TrimEnd('\\'));
         StopService();
         Thread.Sleep(3000);
         DeleteService();

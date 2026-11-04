@@ -10,4 +10,8 @@
     <InvariantGlobalization>true</InvariantGlobalization>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\PocketNAS.Shared\PocketNAS.Shared.csproj" />
+  </ItemGroup>
+
 </Project>

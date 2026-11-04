@@ -16,6 +16,7 @@
     <ProjectReference Include="..\PocketNAS.Shared\PocketNAS.Shared.csproj" />
     <ProjectReference Include="..\..\easy_webdav\src\WebDAVConfigurator\WebDAVConfigurator.csproj" />
     <ProjectReference Include="..\..\SshHelper\SshHelper.csproj" />
+    <ProjectReference Include="..\PocketNAS.Ftps\PocketNAS.Ftps.csproj" />
   </ItemGroup>
 
   <!-- 把 WebDAV 服务发布到输出目录的 service 子目录：安装服务时从这里取 exe -->

@@ -15,9 +15,9 @@ public class ServiceHelper : WindowsServiceHelper
     {
     }
 
-    protected override void OnInstalled() => ApplyFirewallRules();
+    protected override void OnInstalled(string baseDir) => ApplyFirewallRules();
 
-    protected override void OnUninstalling()
+    protected override void OnUninstalling(string baseDir)
     {
         // 清理 HTTPS 证书绑定
         try
