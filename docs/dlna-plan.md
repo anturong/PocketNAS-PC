@@ -3,6 +3,66 @@
 > 状态：**未开工**，方案待定。存档于 2026-11-04。
 > 结论先行：等真正要做时，先跑 P0 取证，再在 A / B 之间选一条。
 
+## 方向调整（2026-11-04 追加）
+
+用户明确要 **Windows 做接收方**，发起方是手机。这推翻了下面「PC 当片源」的全部假设，
+模块定位从 **DMS（发送方）** 改为 **DMR（接收方 / 渲染器）**。
+
+因此 A / B 两条路线（系统媒体流、MiniDLNA）**都不适用**——它们只能做发送。
+DMR 需要自己实现，开源参考见下文「参考实现」。
+
+### 但先要确认手机走的是哪条路
+
+| 手机上的操作 | 协议 | 我们的工作 |
+|---|---|---|
+| 视频 App 的「投屏 / TV」按钮，列表里出现设备名 | DLNA（DMR 方向） | 写 DMR 接收端，可行 |
+| 系统「投屏 / 屏幕镜像」 | Miracast，整屏镜像 | 无需开发，用 Windows「无线显示器」 |
+| iPhone 的隔空播放 | AirPlay | 不是 DLNA，另说 |
+
+**未确认前不要开工。** 判断方法：点投屏后若出现「PC 设备名」且可选中投送 → DLNA；
+若提示「正在连接 / 镜像中」→ Miracast。
+
+### DMR 路线（确认走 DLNA 后）
+
+**参考实现**（GPL 项目，只读不抄）：
+
+| 项目 | 语言 | 价值 |
+|---|---|---|
+| gmrender-resurrect | C + GStreamer + libupnp | 最干净的 DMR 参考，几千行 |
+| Platinum UPnP SDK | C++，带 VS 工程 | 有完整 MediaRenderer 示例，Windows 可跑 |
+| libupnp 的 tv_device | C | 最小 DMR 样例 |
+| Coherence | Python | MediaRenderer 状态机写得最清楚 |
+
+**.NET 现实**：没有成熟的 DMR 库。`Rssdp`（MIT）只能解决 SSDP 发现。
+
+**要实现的协议层**（约 1500~2500 行）：
+
+```
+SSDP     NOTIFY alive/byebye + 响应 M-SEARCH           ~200 行
+HTTP     /description.xml + 三个服务的 SCPD             ~150 行
+SOAP     AVTransport / RenderingControl / ConnectionManager  ~600 行
+GENA     SUBSCRIBE/NOTIFY + LastChange 事件             ~300 行
+播放集成  收到 URI → 拉流 → 回报进度与状态               ~400 行
+```
+
+**播放内核**：FlyleafLib（LGPL，FFmpeg 封装，WPF 下 Direct3D 渲染）优先，
+备选 LibVLCSharp（LGPL）。系统 MediaElement 格式覆盖太少，排除。
+
+**实施顺序**：
+
+| 阶段 | 目标 | 验收 |
+|---|---|---|
+| D1 | 空壳 DMR：能被手机投屏列表发现 | 手机列表出现「PocketNAS-PC」 |
+| D2 | 能播放：接收 URI 并播放 | 手机点投送后 PC 出画面 |
+| D3 | 控制：暂停/进度/音量 + 事件回报 | 手机上拖进度条、调音量同步生效 |
+| D4 | 兼容性：BubbleUPnP、各视频 App、系统投屏 | 逐个真机过一遍 |
+
+**风险**：协议写完只占三分之一，剩下是各 Control Point 的兼容性调试（metadata 格式差异大）。
+
+---
+
+以下为原「PC 当片源（DMS）」方案，仅在方向回到发送方时适用。
+
 ## 目标
 
 DLNA 模块要做到和 WebDAV、SSH 一致的**无感开启**：点一下按钮就完事，用户不需要自己进控制面板配媒体流。
