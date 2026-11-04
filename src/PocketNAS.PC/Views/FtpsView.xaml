@@ -60,6 +60,17 @@
                 </Grid>
 
                 <CheckBox x:Name="ChkRequireTls" Content="强制 TLS（拒绝明文登录）" IsChecked="True"/>
+
+                <TextBlock Text="连接二维码" Margin="0,12,0,4"/>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock TextWrapping="Wrap" FontSize="10.5" Foreground="{StaticResource Fg.Hint}"
+                               Text="按当前监听地址 + 隐式端口 + 用户列表选中账号生成，含密码"/>
+                    <Button Grid.Column="1" Content="生成二维码" Click="GenerateQr" Margin="6,0,0,0"/>
+                </Grid>
             </StackPanel>
         </Border>
 

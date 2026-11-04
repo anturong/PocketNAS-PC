@@ -13,6 +13,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="QRCoder" Version="1.6.0" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\PocketNAS.Shared\PocketNAS.Shared.csproj" />
     <ProjectReference Include="..\..\easy_webdav\src\WebDAVConfigurator\WebDAVConfigurator.csproj" />
     <ProjectReference Include="..\..\SshHelper\SshHelper.csproj" />

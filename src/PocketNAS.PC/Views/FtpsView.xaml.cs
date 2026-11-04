@@ -1,6 +1,10 @@
 using System.Diagnostics;
 using System.IO;
 using System.Security.Cryptography;
+using System.Text.Json;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using QRCoder;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -262,6 +266,130 @@ public partial class FtpsView : UserControl
         _options.Users.RemoveAll(u => u.Username == username);
         RefreshUserList();
         Log($"用户 {username} 已删除（未保存）", LogLevel.Warn);
+    }
+
+    // ==================== 连接二维码 ====================
+
+    private Window? _qrWindow;
+
+    /// <summary>当前用户列表选中的账号</summary>
+    private FtpsUser? SelectedUser()
+    {
+        var text = LstUsers.SelectedItem?.ToString();
+        if (!string.IsNullOrEmpty(text))
+        {
+            var name = text.Contains('[') ? text.Split('[')[0].Trim() : text.Trim();
+            var selected = _options.Users.FirstOrDefault(u => u.Username == name);
+            if (selected != null) return selected;
+        }
+        return _options.Users.FirstOrDefault();
+    }
+
+    private void GenerateQr(object sender, RoutedEventArgs e)
+    {
+        var user = SelectedUser();
+        if (user == null)
+        {
+            Alert("用户列表为空，请先添加一个用户。");
+            return;
+        }
+        if (string.IsNullOrEmpty(user.Password))
+        {
+            Alert("选中的用户没有密码，扫码也连不上。");
+            return;
+        }
+
+        var host = SelectedListenIp() == "0.0.0.0"
+            ? (LanAddresses.Get().FirstOrDefault()?.Ip ?? "127.0.0.1")
+            : SelectedListenIp();
+        var port = int.TryParse(TxtImplicitPort.Text, out var p) ? p : _options.ImplicitPort;
+
+        var payload = JsonSerializer.Serialize(new
+        {
+            v = 1,
+            type = "ftps",
+            name = Environment.MachineName,
+            host,
+            port,
+            implicit_tls = true,
+            user = user.Username,
+            pass = user.Password,
+        });
+
+        ShowQrWindow(payload, $"{user.Username} @ ftps://{host}:{port}/");
+        Log($"二维码已生成：{user.Username} @ ftps://{host}:{port}/（含密码）", LogLevel.Success);
+    }
+
+    /// <summary>二维码只在弹窗里显示，主界面不留含凭据的图像</summary>
+    private void ShowQrWindow(string payload, string caption)
+    {
+        using var gen = new QRCodeGenerator();
+        using var data = gen.CreateQrCode(payload, QRCodeGenerator.ECCLevel.M);
+
+        var workH = SystemParameters.WorkArea.Height;
+        var px = (int)Math.Min(700, workH - 200);
+        if (px < 400) px = 400;
+
+        _qrWindow?.Close();
+
+        var img = new System.Windows.Controls.Image
+        {
+            Source = RenderQr(data, px),
+            Stretch = Stretch.Uniform,
+            Width = px,
+            Height = px,
+        };
+        RenderOptions.SetBitmapScalingMode(img, BitmapScalingMode.NearestNeighbor);
+
+        var panel = new StackPanel { Background = Brushes.White };
+        panel.Children.Add(img);
+        panel.Children.Add(new TextBlock
+        {
+            Text = caption,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Foreground = Brushes.Black,
+            FontSize = 12,
+            Margin = new Thickness(0, 6, 0, 2),
+        });
+        panel.Children.Add(new TextBlock
+        {
+            Text = "用 PocketNAS 扫码添加 · 含账号密码，关闭即销毁，请勿截屏分享",
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Foreground = Brushes.DimGray,
+            FontSize = 11,
+            Margin = new Thickness(0, 0, 0, 12),
+        });
+
+        var win = new Window
+        {
+            Title = "PocketNAS 扫码导入（关闭即销毁）",
+            Content = panel,
+            Width = px + 60,
+            Height = px + 150,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Owner = Window.GetWindow(this),
+            Background = Brushes.White,
+            ResizeMode = ResizeMode.NoResize,
+        };
+        win.Closed += (_, _) => { if (ReferenceEquals(_qrWindow, win)) _qrWindow = null; };
+        _qrWindow = win;
+        win.Show();
+    }
+
+    private static BitmapImage RenderQr(QRCodeData data, int targetPx)
+    {
+        var ppm = Math.Max(4, targetPx / data.ModuleMatrix.Count);
+        var png = new PngByteQRCode(data).GetGraphic(ppm);
+        var bmp = new BitmapImage();
+        using (var ms = new MemoryStream(png))
+        {
+            bmp.BeginInit();
+            bmp.CacheOption = BitmapCacheOption.OnLoad;
+            bmp.StreamSource = ms;
+            bmp.EndInit();
+        }
+        bmp.Freeze();
+        return bmp;
     }
 
     // ==================== 服务控制 ====================
