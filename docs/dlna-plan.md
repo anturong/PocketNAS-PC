@@ -28,10 +28,37 @@ DMR 需要自己实现，开源参考见下文「参考实现」。
 
 | 项目 | 语言 | 价值 |
 |---|---|---|
+| **Macast**（xfangfang） | Python，GPL-3.0 | **最贴近我们的目标**：跨平台 DLNA 接收器，状态栏常驻，手机投电脑 |
 | gmrender-resurrect | C + GStreamer + libupnp | 最干净的 DMR 参考，几千行 |
 | Platinum UPnP SDK | C++，带 VS 工程 | 有完整 MediaRenderer 示例，Windows 可跑 |
 | libupnp 的 tv_device | C | 最小 DMR 样例 |
 | Coherence | Python | MediaRenderer 状态机写得最清楚 |
+
+## Macast 值得借鉴的点
+
+项目地址：https://gitee.com/xfangfang/Macast （Python，GPL-3.0，1.2K stars）
+
+1. **形态和我们的设想一致**：状态栏/托盘常驻、无主窗口，手机一投就播。
+2. **播放后端用外部 mpv 进程**，靠 mpv 的 JSON IPC 控制播放，而不是内嵌播放器。
+   - 好处：格式覆盖最全、崩溃不影响主程序、可随时切换播放器
+   - 自带「边下边看」「复制媒体链接」这类实用功能
+3. **插件机制**：内置插件商店，用来适配各播放器与**国内 App 私有魔改的 DLNA 协议**
+   （其 `nirvana` 插件专做这件事）。这是个警示：只实现标准 DLNA，未必连得上 B 站、爱奇艺这类 App。
+4. **排障路径可直接复用**：默认 HTTP 端口 1068，用 `http://IP:1068` 能否访问判断是否被发现；
+   顺序是 防火墙 → 路由器 UPnP/AP 隔离 → App 本地网络权限 → 是否同网段。
+
+### 与我们的方案差异
+
+| 维度 | Macast | 我们的计划 |
+|---|---|---|
+| 语言 | Python | C# / .NET 8 |
+| 播放 | 外部 mpv 进程 + IPC | 内嵌 libVLC（FlyleafLib 备选） |
+| 形态 | 状态栏应用 | 主程序内的模块（托盘常驻） |
+| 许可 | GPL-3.0 | 只读参考，不引入其代码 |
+
+播放后端值得再权衡：**mpv IPC 的控制能力比 libVLC 内嵌更完整**（实时状态、精确 seek、切轨），
+且进程隔离更稳；代价是 mpv 为 GPL，随包分发需谨慎。第一版先用 libVLC 内嵌，
+遇到格式或稳定性问题再考虑切 mpv。
 
 **.NET 现实**：没有成熟的 DMR 库。`Rssdp`（MIT）只能解决 SSDP 发现。
 
