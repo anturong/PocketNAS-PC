@@ -175,12 +175,14 @@ public static class Program
                     // ---------- 认证 ----------
                     case "USER":
                         if (authenticated) { await session.SendAsync("503 Already logged in."); break; }
+                        if (!tlsActive) { await session.SendAsync("534 Policy requires TLS, send AUTH TLS first."); break; }
                         pendingUser = arg;
                         await session.SendAsync("331 Password required for " + arg + ".");
                         break;
 
                     case "PASS":
                         if (authenticated) { await session.SendAsync("503 Already logged in."); break; }
+                        if (!tlsActive) { await session.SendAsync("534 Policy requires TLS, send AUTH TLS first."); break; }
                         if (pendingUser == User && arg == Pass)
                         {
                             authenticated = true;
@@ -346,6 +348,7 @@ public static class Program
                     // ---------- 文件信息 ----------
                     case "SIZE":
                         {
+                            if (!authenticated) { await session.SendAsync("530 Not logged in."); break; }
                             var f = ResolvePath(cwd, arg, RootDir);
                             if (File.Exists(f)) await session.SendAsync($"213 {new FileInfo(f).Length}");
                             else await session.SendAsync("550 File not found.");
@@ -354,6 +357,7 @@ public static class Program
 
                     case "MDTM":
                         {
+                            if (!authenticated) { await session.SendAsync("530 Not logged in."); break; }
                             var f = ResolvePath(cwd, arg, RootDir);
                             if (File.Exists(f)) await session.SendAsync($"213 {File.GetLastWriteTimeUtc(f):yyyyMMddHHmmss}");
                             else await session.SendAsync("550 File not found.");
@@ -391,6 +395,7 @@ public static class Program
 
                     case "DELE":
                         {
+                            if (!authenticated) { await session.SendAsync("530 Not logged in."); break; }
                             var f = ResolvePath(cwd, arg, RootDir);
                             if (File.Exists(f)) { File.Delete(f); await session.SendAsync("250 File deleted."); }
                             else await session.SendAsync("550 File not found.");
@@ -399,6 +404,7 @@ public static class Program
 
                     case "MKD":
                         {
+                            if (!authenticated) { await session.SendAsync("530 Not logged in."); break; }
                             var d = ResolvePath(cwd, arg, RootDir);
                             try { Directory.CreateDirectory(d); await session.SendAsync("257 Directory created."); }
                             catch { await session.SendAsync("550 Can't create directory."); }
@@ -426,22 +432,41 @@ public static class Program
     // ================= 路径辅助 =================
     static string ResolvePath(string cwd, string arg, string root)
     {
-        var full = arg.StartsWith('/') ? arg : (cwd == "/" ? "/" + arg : cwd.TrimEnd('/') + "/" + arg);
+        // 反斜杠统一成 '/'：否则 "C:\Windows" 会被当成单个路径段，Path.Combine 直接返回绝对路径逃出根目录
+        var normalized = arg.Replace('\\', '/');
+        var full = normalized.StartsWith('/') ? normalized : (cwd == "/" ? "/" + normalized : cwd.TrimEnd('/') + "/" + normalized);
         var parts = full.Split('/', StringSplitOptions.RemoveEmptyEntries);
         var stack = new List<string>();
         foreach (var s in parts)
         {
             if (s == ".") continue;
             if (s == "..") { if (stack.Count > 0) stack.RemoveAt(stack.Count - 1); }
-            else stack.Add(s);
+            else
+            {
+                // 盘符、备用数据流（:）、非法字符一律拒绝
+                if (s.Contains(':') || s.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+                    throw new UnauthorizedAccessException($"非法路径段: {s}");
+                stack.Add(s);
+            }
         }
         var rel = string.Join(Path.DirectorySeparatorChar, stack);
-        return string.IsNullOrEmpty(rel) ? root : Path.GetFullPath(Path.Combine(root, rel));
+        var result = string.IsNullOrEmpty(rel)
+            ? Path.GetFullPath(root)
+            : Path.GetFullPath(Path.Combine(root, rel));
+
+        // 二次校验：结果必须仍在根目录内，防止任何形式的越界
+        var rootFull = Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar);
+        if (!result.Equals(rootFull, StringComparison.OrdinalIgnoreCase) &&
+            !result.StartsWith(rootFull + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+            throw new UnauthorizedAccessException($"路径越界: {arg}");
+
+        return result;
     }
 
     static string Normalize(string cwd, string arg)
     {
-        var full = arg.StartsWith('/') ? arg : (cwd == "/" ? "/" + arg : cwd.TrimEnd('/') + "/" + arg);
+        var normalized = arg.Replace('\\', '/');
+        var full = normalized.StartsWith('/') ? normalized : (cwd == "/" ? "/" + normalized : cwd.TrimEnd('/') + "/" + normalized);
         var parts = full.Split('/', StringSplitOptions.RemoveEmptyEntries);
         var stack = new List<string>();
         foreach (var s in parts)
