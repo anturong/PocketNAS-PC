@@ -974,6 +974,10 @@ public partial class SshView : System.Windows.Controls.UserControl
             type = "ssh",
             name = Environment.MachineName,
             url = $"sftp://{ip}:22/",
+            // 与 FTPS / WebDAV 两处出码同构：url 给只认 url 的旧版 PocketNAS，
+            // host/port 给按散字段拼地址的新版 PocketNAS
+            host = ip,
+            port = 22,
             user = user,      // 用 UI 线程取好的入参，别再读 TxtUser
             pass = "",
             fp = fp ?? "",

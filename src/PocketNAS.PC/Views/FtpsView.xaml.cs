@@ -333,6 +333,9 @@ public partial class FtpsView : UserControl
             name = Environment.MachineName,
             host,
             port,
+            // url 和 host/port 一起给：url 给只认 url 的旧版 PocketNAS 和第三方扫码器，
+            // host/port 给按散字段拼地址的新版 PocketNAS —— 与手机端出码结构一致
+            url = $"ftps://{host}:{port}/",
             tls = "explicit",
             implicit_tls = false,
             explicit_port = port,
