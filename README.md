@@ -8,8 +8,8 @@ PocketNAS 的 Windows 桌面端合集：把原先分散的 WebDAV 管理器和 S
 |---|------|------|------|
 | ① | WebDAV | 已接入 | easy_webdav（v1.2.4） |
 | ② | SSH | 已接入 | SshHelper（v1.04） |
-| ③ | FTPS | 预留，仅占位无实现 | — |
-| ④ | DLNA | 预留，仅占位无实现 | — |
+| ③ | FTPS | 已接入 | FtpsServer（新写） |
+| ④ | DLNA | 预留，方向调整为投屏接收，见计划 | — |
 
 ## 界面
 
@@ -29,7 +29,9 @@ SSH 模块：
 PocketNAS-PC/
 ├── src/
 │   ├── PocketNAS.PC/          # 外壳：窗口、导航、全局日志渲染
-│   └── PocketNAS.Shared/      # 共享层：LogService
+│   ├── PocketNAS.Shared/      # 共享层：LogService / LanAddresses / 服务管理 / 提权
+│   ├── PocketNAS.Ftps/        # ③ FTPS 协议实现 + 服务助手
+│   └── PocketNAS.FtpsService/ # ③ FTPS 服务宿主（Generic Host）
 ├── easy_webdav/               # ① WebDAV 模块（完整历史）
 │   ├── src/WebDAVService/            # 服务端
 │   └── src/WebDAVConfigurator/       # WebDavView（UserControl）

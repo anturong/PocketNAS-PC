@@ -102,9 +102,9 @@ public partial class MainWindow : Window
         });
         _modules.Add(new NavModule
         {
-            Key = "ftps", Title = "FTPS", Status = "预留",
-            Subtitle = "预留模块位，本期不提供实现",
-            Dot = hint, TitleColor = hint, TagText = "预留", TagVisibility = Visibility.Visible
+            Key = "ftps", Title = "FTPS", Status = "就绪",
+            Subtitle = "FTPS 文件传输：显式 21 / 隐式 990，供 VLC 等客户端拉流",
+            Dot = blue, TitleColor = muted
         });
         _modules.Add(new NavModule
         {
@@ -115,8 +115,7 @@ public partial class MainWindow : Window
 
         _views["webdav"] = new WebDavView();
         _views["ssh"] = new SshHelper.SshView();
-        _views["ftps"] = new ModulePlaceholder("FTPS", "预留模块",
-            "位置已留好，等确定 FTPS 服务实现方案后再填充。");
+        _views["ftps"] = new FtpsView();
         _views["dlna"] = new ModulePlaceholder("DLNA", "预留模块",
             "位置已留好，等确定 DLNA 媒体库方案后再填充。");
     }
