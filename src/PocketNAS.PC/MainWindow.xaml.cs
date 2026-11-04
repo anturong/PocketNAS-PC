@@ -35,7 +35,10 @@ public partial class MainWindow : Window
         BuildModules();
 
         NavList.ItemsSource = _modules;
-        TxtVersion.Text = $"v{typeof(MainWindow).Assembly.GetName().Version?.ToString(3)} · 模块骨架";
+        var version = typeof(MainWindow).Assembly.GetName().Version;
+        var versionText = $"v{version?.ToString(3) ?? "1.0.0"}";
+        Title = $"PocketNAS-PC {versionText}";
+        TxtVersion.Text = $"{versionText} · {BuildDate():yyyy-MM-dd}";
 
         LogService.Written += OnLogWritten;
         Closed += (_, _) => LogService.Written -= OnLogWritten;
@@ -79,6 +82,19 @@ public partial class MainWindow : Window
 
             Application.Current.Shutdown();
         }, System.Windows.Threading.DispatcherPriority.ContextIdle);
+    }
+
+    /// <summary>构建日期：取程序文件的最后写入时间，取不到就退回当前日期</summary>
+    private static DateTime BuildDate()
+    {
+        try
+        {
+            var location = Environment.ProcessPath ?? typeof(MainWindow).Assembly.Location;
+            if (!string.IsNullOrEmpty(location) && File.Exists(location))
+                return File.GetLastWriteTime(location);
+        }
+        catch { }
+        return DateTime.Today;
     }
 
     private void BuildModules()
