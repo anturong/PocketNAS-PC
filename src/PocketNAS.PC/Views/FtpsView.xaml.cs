@@ -70,29 +70,36 @@ public partial class FtpsView : UserControl
 
     private void FillListenIps()
     {
+        // 与 WebDAV / SSH 完全一致：只列真实网卡，ComboBoxItem 的 Tag 存纯 IP
         CmbListenIp.Items.Clear();
-        CmbListenIp.Items.Add("0.0.0.0（全部网卡）");
         foreach (var address in LanAddresses.Get())
-            CmbListenIp.Items.Add(address.ToString());
+            CmbListenIp.Items.Add(new ComboBoxItem { Content = address.ToString(), Tag = address.Ip });
 
-        var current = _options.ListenIp is "0.0.0.0" or "+" or "*"
-            ? "0.0.0.0（全部网卡）"
-            : _options.ListenIp;
-        CmbListenIp.SelectedItem = current;
-        if (CmbListenIp.SelectedIndex < 0) CmbListenIp.SelectedIndex = 0;
+        var target = _options.AdvertiseIp;
+        var match = CmbListenIp.Items.Cast<ComboBoxItem>()
+            .FirstOrDefault(i => (string?)i.Tag == target);
+        CmbListenIp.SelectedItem = (object?)match ?? (CmbListenIp.Items.Count > 0 ? CmbListenIp.Items[0] : null);
     }
 
-    private string SelectedListenIp()
+    /// <summary>下拉选中的访问地址（Tag 里是纯 IP）</summary>
+    private string SelectedAdvertiseIp() => CmbListenIp.SelectedItem switch
     {
-        var text = CmbListenIp.SelectedItem?.ToString() ?? "0.0.0.0（全部网卡）";
-        return text.StartsWith("0.0.0.0") ? "0.0.0.0" : text.Split("  ·  ")[0];
+        ComboBoxItem { Tag: string ip } => ip,
+        _ => "",
+    };
+
+    /// <summary>展示用地址：下拉选中的优先，没选就用第一块网卡</summary>
+    private string DisplayHost()
+    {
+        var selected = SelectedAdvertiseIp();
+        return string.IsNullOrEmpty(selected)
+            ? (LanAddresses.Get().FirstOrDefault()?.Ip ?? "127.0.0.1")
+            : selected;
     }
 
     private void UpdateLinks()
     {
-        var host = SelectedListenIp() == "0.0.0.0"
-            ? (LanAddresses.Get().FirstOrDefault()?.Ip ?? "127.0.0.1")
-            : SelectedListenIp();
+        var host = DisplayHost();
         LnkExplicit.Text = $"ftps://{host}:{_options.ExplicitPort}/";
         LnkImplicit.Text = $"ftps://{host}:{_options.ImplicitPort}/";
     }
@@ -117,7 +124,9 @@ public partial class FtpsView : UserControl
     {
         try
         {
-            _options.ListenIp = SelectedListenIp();
+            // 绑定地址固定为全部网卡（等价 WebDAV 的 "+"），下拉只决定展示地址
+            _options.ListenIp = "0.0.0.0";
+            _options.AdvertiseIp = SelectedAdvertiseIp();
             _options.ExplicitPort = int.Parse(TxtExplicitPort.Text);
             _options.ImplicitPort = int.Parse(TxtImplicitPort.Text);
             _options.RootDir = TxtRootDir.Text.Trim();
@@ -311,9 +320,7 @@ public partial class FtpsView : UserControl
             return;
         }
 
-        var host = SelectedListenIp() == "0.0.0.0"
-            ? (LanAddresses.Get().FirstOrDefault()?.Ip ?? "127.0.0.1")
-            : SelectedListenIp();
+        var host = DisplayHost();
         var port = int.TryParse(TxtImplicitPort.Text, out var p) ? p : _options.ImplicitPort;
 
         var payload = JsonSerializer.Serialize(new

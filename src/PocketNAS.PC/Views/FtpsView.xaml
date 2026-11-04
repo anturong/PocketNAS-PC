@@ -16,8 +16,11 @@
             <StackPanel>
                 <TextBlock Text="基本设置" Style="{StaticResource CardTitle}"/>
 
-                <TextBlock Text="监听地址" Margin="0,0,0,4"/>
-                <ComboBox x:Name="CmbListenIp" Margin="0,0,0,10"/>
+                <TextBlock Text="访问地址" Margin="0,0,0,4"/>
+                <ComboBox x:Name="CmbListenIp" Margin="0,0,0,4"/>
+                <TextBlock Text="服务监听全部网卡，这里只决定访问链接与二维码用哪个地址"
+                           TextWrapping="Wrap" FontSize="10.5"
+                           Foreground="{StaticResource Fg.Hint}" Margin="0,0,0,10"/>
 
                 <Grid Margin="0,0,0,8">
                     <Grid.ColumnDefinitions>

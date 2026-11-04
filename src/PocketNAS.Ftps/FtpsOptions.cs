@@ -23,8 +23,13 @@ public sealed class FtpsUser
 /// </summary>
 public sealed class FtpsOptions
 {
+    /// <summary>绑定地址，服务端实际监听这个地址；默认全部网卡（等价 WebDAV 的 "+"）</summary>
     [JsonPropertyName("listen_ip")]
     public string ListenIp { get; set; } = "0.0.0.0";
+
+    /// <summary>展示给客户端的地址（访问链接、二维码用），与绑定地址解耦</summary>
+    [JsonPropertyName("advertise_ip")]
+    public string AdvertiseIp { get; set; } = "";
 
     [JsonPropertyName("explicit_port")]
     public int ExplicitPort { get; set; } = 21;
