@@ -37,10 +37,14 @@ PocketNAS-PC/
 │   └── src/WebDAVConfigurator/       # WebDavView（UserControl）
 ├── SshHelper/                 # ② SSH 模块（完整历史）→ SshView
 ├── docs/shots/                # 界面截图
+├── AGENTS.md                  # 项目记忆：约定、硬约束、踩过的坑
 └── PocketNAS-PC.sln
 ```
 
 两个来源仓库以 `git subtree` 方式并入，各自保留完整提交历史。
+
+> 动手改代码前，先读 [AGENTS.md](AGENTS.md)。那里记着不成文的约定和已经踩过的坑
+> （比如为什么按钮模板不能用 `TextBlock`、为什么 FTPS 不要动）。
 
 ## 构建与运行
 
