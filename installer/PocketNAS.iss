@@ -23,6 +23,12 @@
   #define StageApp "..\dist\stage-20261107-2231\app"
 #endif
 
+; 输出目录也可覆盖（/DOutputDir=...）：dist 里的旧 exe 被杀软或资源管理器占住时，
+; 换一个目录编译，避免 EndUpdateResource failed (110)
+#ifndef OutputDir
+  #define OutputDir "..\dist"
+#endif
+
 #define WebDavSvcName "WebDAVService"
 #define FtpsSvcName "FtpsService"
 
@@ -36,7 +42,7 @@ DefaultDirName={autopf}\PocketNAS
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 DisableDirPage=no
-OutputDir=..\dist
+OutputDir={#OutputDir}
 OutputBaseFilename=PocketNAS-PC-Setup-{#MyAppVersion}
 SetupIconFile=..\src\PocketNAS.PC\Assets\pocketnas.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
@@ -191,9 +197,13 @@ begin
     if WizardIsTaskSelected('installservice') then
     begin
       Exe := ExpandConstant('{app}\{#MyAppExeName}');
-      { 复用程序自己的提权入口：防火墙规则、URL ACL、证书绑定都在里面，不另写一份 }
-      R1 := RunHidden(Exe, '--install');
-      R2 := RunHidden(Exe, '--ftps-install');
+      { 复用程序自己的提权入口：防火墙规则、URL ACL、证书绑定都在里面，不另写一份。
+        注意必须显式传服务 exe 所在目录（命令行入口不带参数时会回退到 Exe 自身目录）。
+        两个服务的目录还不一样：WebDAV 在 app\service，FTPS 在 app\service\ftps，
+        传错会 FileNotFoundException、退出码 1。
+        另：Pascal 注释里不要写花括号常量，会被当成嵌套注释编译失败。 }
+      R1 := RunHidden(Exe, '--install "' + ExpandConstant('{app}\service') + '"');
+      R2 := RunHidden(Exe, '--ftps-install "' + ExpandConstant('{app}\service\ftps') + '"');
       if (R1 = 0) and (R2 = 0) then
         SaveStringToFile(ServiceFlagPath, '1', False)
       else if not WizardSilent then
