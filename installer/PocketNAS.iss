@@ -14,7 +14,7 @@
 ;   彻底方案是把这些路径挪到 {commonappdata}\PocketNAS，属于代码改动，另行排期。
 
 #define MyAppName "PocketNAS"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.0.1"
 #define MyAppPublisher "PocketNAS"
 #define MyAppExeName "PocketNAS-PC.exe"
 
@@ -75,7 +75,10 @@ Name: "{group}\卸载 {#MyAppName}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\{#MyAppExeName}"; Description: "启动 {#MyAppName}"; Flags: nowait postinstall skipifsilent
+; runascurrentuser 必须加：主程序 manifest 是 requireAdministrator，
+; postinstall 默认以原始（未提权）用户 CreateProcess 拉它必报 740；
+; 用安装器的提权 token 启动就能正常拉起
+Filename: "{app}\{#MyAppExeName}"; Description: "启动 {#MyAppName}"; Flags: nowait postinstall skipifsilent runascurrentuser
 
 ; 服务的注册与卸载都放在 [Code] 里做，不用 [UninstallRun]：
 ; 只有「这次安装确实注册过服务」才写标记文件，卸载时按标记决定要不要删服务。

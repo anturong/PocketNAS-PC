@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     打包 PocketNAS PC 端安装包（Inno Setup）。
 
@@ -15,10 +15,21 @@
 
 [CmdletBinding()]
 param(
-    [string]$Version = "1.0.0",
+    [string]$Version = "1.0.1",
     [string]$Configuration = "Release",
-    [string]$AndroidApk = "C:\Users\41456\OneDrive\我编写的常用工具\PocketNAS-1.17.apk"
+    # 手机端 APK：默认自动取 OneDrive 成品目录里版本号最高那个，
+    # 别再写死具体版本——上一个 1.17 写死导致出 1.0.1 时差点塞旧包
+    [string]$AndroidApk = ""
 )
+
+# 未显式指定 APK 时，按版本号从高到低挑最新的 PocketNAS-*.apk
+if (-not $AndroidApk) {
+    $apkDir = "C:\Users\41456\OneDrive\我编写的常用工具"
+    $latest = Get-ChildItem -Path $apkDir -Filter "PocketNAS-*.apk" -ErrorAction SilentlyContinue |
+        Sort-Object { try { [version]($_.BaseName -replace '^PocketNAS-', '') } catch { [version]"0.0" } } -Descending |
+        Select-Object -First 1
+    if ($latest) { $AndroidApk = $latest.FullName }
+}
 
 $ErrorActionPreference = "Stop"
 $repo = Split-Path -Parent $PSScriptRoot
