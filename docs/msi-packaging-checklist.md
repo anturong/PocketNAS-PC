@@ -235,3 +235,32 @@ MSI / setup.exe 的价值就在这里：**提权 + 原子化 + 回滚 + 卸载�
 - 修订记录：2026-11-07 初版把 OneDrive 云占位符当成了主线；同日按项目实际目标修订为「独立账号运行稳定」，OneDrive 降级为 1.2 隔离约束中的一个实例（1.3 案例）。服务账号的具体选型（P05）**仍待项目拍板**，本文只列选项不替项目决定。
 - 按 `AGENTS.md` 第 1 节「每次踩到新坑同步更新」的约定，建议后续把「服务账号与用户会话隔离」补进 AGENTS.md 第 4 节「已知的坑」；并在 README「已知待办」加一条指向本文的链接。这两处**本次未改**，等确认后再动。
 - 打包脚本真正落地时，遵守「一个功能一个 commit」；文档用 `docs:` 前缀单独提交，不与构建脚本混在一个 commit 里。
+
+---
+
+## 6. 落地记录：v1 用 Inno Setup 做出来了（2026-11-07）
+
+结论：**先做 Inno Setup**，脚本在 `installer/PocketNAS.iss`，构建脚本 `installer/build.ps1`，产物 `dist\PocketNAS-PC-Setup-1.0.0.exe`（318 MB → 108 MB）。MSI 留到需要静默/企业部署时再补。
+
+### 6.1 这一版做了什么
+
+| 对应清单 | 做法 |
+|---|---|
+| P10 / P12 | `DefaultDirName={autopf}\PocketNAS`；选目录时 `NextButtonClick` 拦 OneDrive / Dropbox / 坚果云 / 百度网盘等，直接报 0x8007018B 的原因 |
+| P17 | `ssInstall` 阶段先 `net stop WebDAVService` + `net stop FtpsService`，`CloseApplications=yes` 兜住界面进程 |
+| P11 | 装完在 `ssPostInstall` 调程序自己的 `--install` / `--ftps-install`（防火墙、URL ACL、证书绑定都在里面，不另写一份）；成功后写标记 `service\.setup-installed-services` |
+| P19 | 卸载时**只删自己注册的服务**（凭上面那个标记），再问一句要不要连共享目录和配置一起删；静默卸载默认保留数据 |
+| P13 变通 | 配置 / 日志 / 共享目录仍在 `service\` 下（代码现状），但安装期只对 **`webdav_config.json`、`ftps_config.json`、`webdav_share\`、`logs\`、`ftps\share\`、`ftps\logs\`** 授 `Users:(M)`；**`service\` 目录本身不授权**，否则普通用户能替换 `WebDAVService.exe`，等于白送 SYSTEM |
+
+### 6.2 这一版没做（下次要补）
+
+1. **服务账号仍是 `LocalSystem`**（`WindowsServiceHelper.InstallService` 里 `sc create` 没带 `obj=`）。清单 P05 倾向的虚拟账户 `NT SERVICE\WebDAVService` 需要改代码：`sc create ... obj= "NT SERVICE\WebDAVService" password= ""`，同时 ACL 要把授权对象从 `Users` 换成该虚拟账户的 SID —— 属于代码改动，未动。
+2. **数据没搬到 `{commonappdata}\PocketNAS`**（P13 / P14 的正解）。搬了就要改 `ConfigHelper` 与 `FtpsOptions` 的基准目录，未动。
+3. **提权路径没有端到端实测**：本机 UAC 在非交互会话里被系统直接拒（`ERROR_CANCELLED`），Program Files 写入、服务注册、Program Files 下的 icacls 只做了脚本自检，需要人工点一次「是」才能确认。低权限自测包已验：文件落地、`{}` 配置生成、三个数据目录创建、ACL 授权范围、静默卸载保留数据且不动同名服务。
+4. 版本号 `1.0.0` 是手写常量（`#define MyAppVersion`），没做成从 csproj 读；改版本要同时改 `csproj` 与 `.iss`（或 `build.ps1 -Version`）。
+
+### 6.3 已知构建坑
+
+- `dotnet build -r win-x64` 之前必须先 `dotnet restore` **`PocketNAS.FtpsService` 单独一次**，否则嵌套 publish 报 `NETSDK1047`（assets 里没有 `net8.0/win-x64`）。
+- 嵌套 publish 在 `PublishDir` 被外部覆盖时**不会带 `web\*.html`**，`build.ps1` 里单独补了一次；否则装出来的 WebDAV 服务没有浏览页。
+- `.iss` 的 Pascal 注释里不能写 `{app}` 这类花括号，会被当成嵌套注释，编译报 `Syntax error`。
