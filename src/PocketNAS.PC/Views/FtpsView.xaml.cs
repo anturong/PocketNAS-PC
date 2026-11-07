@@ -345,7 +345,14 @@ public partial class FtpsView : UserControl
         });
 
         ShowQrWindow(payload, $"{user.Username} @ ftps://{host}:{port}/（显式 TLS）");
-        Log($"二维码已生成：{user.Username} @ ftps://{host}:{port}/（显式 TLS，含密码）", LogLevel.Success);
+
+        // 出码的同时把地址 / 账号 / 密码写进剪贴板：手填客户端、发给别人时不用再回头翻用户列表。
+        // 顺序固定「地址 → 账号 → 密码」，一行一项，粘到哪里都能直接用
+        var copied = ClipboardText.Set($"ftps://{host}:{port}/\n{user.Username}\n{user.Password}");
+        Log(copied
+                ? $"二维码已生成：{user.Username} @ ftps://{host}:{port}/（显式 TLS，含密码，已复制到剪贴板）"
+                : $"二维码已生成：{user.Username} @ ftps://{host}:{port}/（显式 TLS，含密码；复制到剪贴板失败，剪贴板被占用）",
+            copied ? LogLevel.Success : LogLevel.Warn);
     }
 
     /// <summary>二维码只在弹窗里显示，主界面不留含凭据的图像</summary>

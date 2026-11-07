@@ -67,6 +67,8 @@ PocketNAS-PC.exe --shot out.png --module=ssh
 以 `runas` 重启自身执行，不再依赖独立的 WebDAVConfigurator.exe。
 
 **二维码**：两个模块都有，但都只出现在弹窗里，主界面不留含凭据的图像。
+点「生成二维码」时，同一份连接信息（地址 / 账号 / 密码）还会**同时写进剪贴板**，
+方便手填客户端或发给别人——所以剪贴板里会留一份明文凭据，用完记得覆盖掉。
 
 **权限**：外壳 manifest 为 `requireAdministrator`，启动即请求 UAC。两个模块都要改系统状态
 （配置 sshd、写 `administrators_authorized_keys`、安装 Windows 服务），普通权限下会直接失败。

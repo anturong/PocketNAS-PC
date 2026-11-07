@@ -522,7 +522,14 @@ public partial class WebDavView : System.Windows.Controls.UserControl
         });
 
         ShowQrWindow(payload, $"{user.Username} @ {url}");
-        Log($"二维码已生成：{user.Username} @ {url}（HTTPS，含账号密码）", LogLevel.Success);
+
+        // 出码的同时把地址 / 账号 / 密码写进剪贴板：手填客户端、发给别人时不用再回头翻用户列表。
+        // 顺序固定「地址 → 账号 → 密码」，一行一项，粘到哪里都能直接用
+        var copied = ClipboardText.Set($"{url}\n{user.Username}\n{user.Password}");
+        Log(copied
+                ? $"二维码已生成：{user.Username} @ {url}（HTTPS，含账号密码，已复制到剪贴板）"
+                : $"二维码已生成：{user.Username} @ {url}（HTTPS，含账号密码；复制到剪贴板失败，剪贴板被占用）",
+            copied ? LogLevel.Success : LogLevel.Warn);
     }
 
     private void ShowQrWindow(string payload, string caption)

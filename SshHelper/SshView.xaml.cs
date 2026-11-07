@@ -905,7 +905,17 @@ public partial class SshView : System.Windows.Controls.UserControl
             var ip = GetSelectedIp();
             var payload = await Task.Run(() => BuildPocketNasPayload(user, ip));
             if (payload != null)
+            {
                 ShowQr(payload);
+
+                // 出码的同时把地址 / 用户名写进剪贴板。SSH 走密钥认证，本来就没有密码；
+                // 私钥也不往这里塞——它有单独的「复制私钥」入口，几百行糊到剪贴板只会碍事
+                var copied = ClipboardText.Set($"sftp://{ip}:22/\n{user}");
+                AppendLog(copied
+                        ? $"地址和用户名已复制到剪贴板：sftp://{ip}:22/ · {user}\n"
+                        : "复制到剪贴板失败：剪贴板被其他进程占用\n",
+                    copied ? LogColor.Green : LogColor.Red);
+            }
         }
         catch (Exception ex)
         {

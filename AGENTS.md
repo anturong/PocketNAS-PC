@@ -43,6 +43,7 @@ dotnet build PocketNAS-PC.sln -c Debug -p:SkipWebDavService=true -p:SkipFtpsServ
 - **服务管理**：统一走 `PocketNAS.Shared.WindowsServiceHelper`（sc create/delete/start/stop + 状态等待），各模块只留 `OnInstalled` / `OnUninstalling` 钩子。
 - **日志**：所有模块写 `PocketNAS.Shared.LogService`，由外壳右侧面板统一渲染，切换模块不清空；服务端写 Serilog 到 `logs\service.log`。
 - **IP 选择**：统一 `LanAddresses`，跳过回环 / APIPA / 未启用网卡，按「有网关 > 以太网/WLAN > 其他 > 网卡名」排序，显示 `IP · 网卡名`，`ComboBoxItem.Tag` 存纯 IP。
+- **剪贴板**：统一 `PocketNAS.Shared.ClipboardText.Set`（Win32 API + 重试 10 次），不要用 WPF `Clipboard.SetText`——剪贴板被别的进程占用时它会直接抛异常。写的内容一律「一行一项、地址在前」，方便直接粘进目标程序。
 - **绑定地址与展示地址必须分开**：WebDAV 用 `host="+"`，FTPS 用 `listen_ip=0.0.0.0` + `advertise_ip`。下拉只列真实网卡，**不要**把「0.0.0.0 / 全部网卡」混进下拉——那是绑定概念，界面不暴露。
 
 ---
