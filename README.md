@@ -37,6 +37,7 @@ PocketNAS-PC/
 │   └── src/WebDAVConfigurator/       # WebDavView（UserControl）
 ├── SshHelper/                 # ② SSH 模块（完整历史）→ SshView
 ├── docs/shots/                # 界面截图
+├── docs/brand-and-layout.md   # 品牌标志与网页版面定稿
 ├── AGENTS.md                  # 项目记忆：约定、硬约束、踩过的坑
 └── PocketNAS-PC.sln
 ```
@@ -168,6 +169,9 @@ git push -u origin master
   （手机投送 → PC 接住 → 播放器读取；已否决的路线与开工前必须先回答的 4 个问题都在里面）。
 - **FTPS 证书**：当前只能自动生成，无管理入口；方案存档在 [docs/ftps-cert-plan.md](docs/ftps-cert-plan.md)
   （核心是二维码下发证书指纹做 TOFU，绕开手机装证书的麻烦）。
+- **安装包 103.3 MB，超 GitHub Release 单文件 100 MB 上限**：自包含 .NET 运行时的 Inno Setup
+  压完就这个体积。这一版 Release 只能附 framework-dependent 包（需系统装 .NET 8 Desktop Runtime），
+  完整 Setup 走网盘。方向：裁掉未用的本地化资源（`zh-Hant` / `ja` / `ko` 的 `*.resources.dll`）。
 - 状态胶囊固定显示「就绪」，尚未接真实的 sshd / WebDAV 服务状态。
 - IP 选择下拉在网卡名较长时可能显示不全；单纯调大宽度会顶乱版面，
   后续考虑改成弹窗式选择器（点开列出「IP · 网卡类型 · 状态」再确认）。
