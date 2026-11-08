@@ -1,6 +1,6 @@
 # PocketNAS 标志设计（定稿）
 
-![标志定稿](https://raw.githubusercontent.com/anturong/PocketNAS-PC/master/docs/shots/logo-sheet.png)
+![标志定稿](../docs/shots/logo-sheet.png)
 
 > 定稿于 2026-11-08，随手机 `v1.21` / PC `v1.0.3` 一起冻结。
 > 本目录的 SVG 是**设计源**，`src/PocketNAS.PC/Assets/brand/*.png` 是**生产位图**，
