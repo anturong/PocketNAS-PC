@@ -27,6 +27,17 @@ h1{text-align:center;font-size:22px;font-weight:700;margin-bottom:4px}
 .card button{width:100%;padding:12px;background:var(--ac);color:#080a0f;border:none;border-radius:var(--r);font-size:15px;font-weight:600;cursor:pointer;transition:opacity .2s;font-family:inherit}
 .card button:hover{opacity:.9}
 .error{background:rgba(255,71,87,.12);color:var(--dg);padding:10px 14px;border-radius:8px;margin-bottom:16px;text-align:center;font-size:14px}
+/* 「记住密码」：勾上就 30 天免登录；不勾只在本次浏览器会话里有效。
+   不能用 .card input 的通用样式（100% 宽 + 12px 下边距），这里整条覆盖 */
+.remRow{display:flex;align-items:center;gap:9px;margin:-2px 0 16px;cursor:pointer;
+  font-size:13px;color:var(--t2);user-select:none;line-height:1.2}
+.card .remRow input[type=checkbox]{-webkit-appearance:none;appearance:none;width:18px;height:18px;
+  flex:0 0 18px;margin:0;padding:0;border:1.5px solid var(--bd);border-radius:5px;
+  background:var(--bg1);cursor:pointer;position:relative;transition:background .15s,border-color .15s}
+.card .remRow input[type=checkbox]:checked{background:var(--ac);border-color:var(--ac)}
+.card .remRow input[type=checkbox]:checked::after{content:"";position:absolute;left:5px;top:1.5px;
+  width:5px;height:9px;border:solid #080a0f;border-width:0 2px 2px 0;transform:rotate(45deg)}
+.remRow:hover{color:var(--t1)}
 @media(max-width:480px){
     .card{padding:24px 18px}
     .card input{padding:13px 14px;font-size:16px}
@@ -82,6 +93,7 @@ h1{text-align:center;font-size:22px;font-weight:700;margin-bottom:4px}
 <svg viewBox="0 0 24 24" id="eyeOff" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
 </button>
 </div>
+<label class="remRow"><input type="checkbox" name="remember" value="1" checked> 记住密码</label>
 <button type="submit"><i class="fas fa-right-to-bracket"></i> 登 录</button>
 </form>
 </div>
