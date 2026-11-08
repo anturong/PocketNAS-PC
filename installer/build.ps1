@@ -15,7 +15,7 @@
 
 [CmdletBinding()]
 param(
-    [string]$Version = "1.0.1",
+    [string]$Version = "1.0.3",
     [string]$Configuration = "Release",
     # 手机端 APK：默认自动取 OneDrive 成品目录里版本号最高那个，
     # 别再写死具体版本——上一个 1.17 写死导致出 1.0.1 时差点塞旧包
