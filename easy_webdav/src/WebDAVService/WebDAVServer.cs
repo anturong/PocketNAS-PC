@@ -37,17 +37,29 @@ public class WebDAVServer
     {
         public string Username { get; init; } = "";
         public DateTime CreatedAt { get; init; } = DateTime.UtcNow;
+
+        /// <summary>这条会话自己活多久：勾了「记住密码」30 天，没勾 24 小时</summary>
+        public TimeSpan Ttl { get; init; } = SessionManager.ShortTtl;
     }
 
     private class SessionManager
     {
         private readonly ConcurrentDictionary<string, WebDavSession> _sessions = new(StringComparer.Ordinal);
-        private static readonly TimeSpan Expiry = TimeSpan.FromHours(24);
 
-        public string Create(string username)
+        /// <summary>没勾「记住密码」：一天。Cookie 也是会话级的，关浏览器就没了</summary>
+        public static readonly TimeSpan ShortTtl = TimeSpan.FromHours(24);
+
+        /// <summary>勾了「记住密码」：30 天。Cookie 带 Expires，重开浏览器仍免登录</summary>
+        public static readonly TimeSpan LongTtl = TimeSpan.FromDays(30);
+
+        public string Create(string username, bool remember = false)
         {
             var token = Guid.NewGuid().ToString("N");
-            _sessions[token] = new WebDavSession { Username = username };
+            _sessions[token] = new WebDavSession
+            {
+                Username = username,
+                Ttl = remember ? LongTtl : ShortTtl
+            };
             Cleanup();
             return token;
         }
@@ -55,7 +67,7 @@ public class WebDAVServer
         public string? Validate(string? token)
         {
             if (token == null) return null;
-            if (_sessions.TryGetValue(token, out var s) && DateTime.UtcNow - s.CreatedAt < Expiry)
+            if (_sessions.TryGetValue(token, out var s) && DateTime.UtcNow - s.CreatedAt < s.Ttl)
                 return s.Username;
             if (token != null) _sessions.TryRemove(token, out _);
             return null;
@@ -68,9 +80,9 @@ public class WebDAVServer
 
         private void Cleanup()
         {
-            var cutoff = DateTime.UtcNow - Expiry;
+            var now = DateTime.UtcNow;
             foreach (var kvp in _sessions)
-                if (kvp.Value.CreatedAt < cutoff)
+                if (now - kvp.Value.CreatedAt >= kvp.Value.Ttl)
                     _sessions.TryRemove(kvp.Key, out _);
         }
     }
@@ -577,6 +589,8 @@ public class WebDAVServer
             var parsed = ParseFormBody(body);
             var user = parsed.GetValueOrDefault("username", "");
             var pass = parsed.GetValueOrDefault("password", "");
+            // 「记住密码」勾上：Cookie 带 Expires、会话给 30 天；不勾就是关浏览器即失效
+            var remember = parsed.GetValueOrDefault("remember", "") is "1" or "on" or "true";
 
             var formKey = ClientKey(ctx);
             if (_loginThrottle.IsBlocked(formKey))
@@ -588,8 +602,8 @@ public class WebDAVServer
             if (_users.TryGetValue(user, out var expected) && expected == pass)
             {
                 _loginThrottle.Success(formKey);
-                var token = _sessions.Create(user);
-                SetSessionCookie(ctx, token);
+                var token = _sessions.Create(user, remember);
+                SetSessionCookie(ctx, token, remember);
                 ctx.Response.StatusCode = 302;
                 ctx.Response.Headers.Add("Location", "/");
                 ctx.Response.Close();
@@ -1146,13 +1160,22 @@ public class WebDAVServer
     }
 
     /// <summary>写入会话 Cookie：HttpOnly + SameSite=Lax，HTTPS 下追加 Secure。
-    /// 手工拼 Set-Cookie，因为 HttpListener 不序列化 Cookie.SameSite。token 为 32 位十六进制，无需转义。</summary>
-    private static void SetSessionCookie(HttpListenerContext ctx, string token)
+    /// 手工拼 Set-Cookie，因为 HttpListener 不序列化 Cookie.SameSite。token 为 32 位十六进制，无需转义。
+    ///
+    /// remember=true 才写 Expires / Max-Age：勾了「记住密码」30 天有效；
+    /// 不写这两项就是会话 Cookie，浏览器一关就没了 —— 这才是「记住密码」的语义，
+    /// 以前不分勾没勾都写死 1 天，等于强制「记住」，在别人电脑上登录关不掉。</summary>
+    private static void SetSessionCookie(HttpListenerContext ctx, string token, bool remember = false)
     {
         var secure = ctx.Request.IsSecureConnection ? "; Secure" : "";
-        var expires = DateTime.UtcNow.AddDays(1).ToString("R");
+        var life = "";
+        if (remember)
+        {
+            var ttl = SessionManager.LongTtl;
+            life = $"; Max-Age={(int)ttl.TotalSeconds}; Expires={DateTime.UtcNow.Add(ttl).ToString("R")}";
+        }
         ctx.Response.AppendHeader("Set-Cookie",
-            $"session={token}; Path=/; HttpOnly; SameSite=Lax{secure}; Expires={expires}");
+            $"session={token}; Path=/; HttpOnly; SameSite=Lax{secure}{life}");
     }
 
     /// <summary>限长读取请求体（按 UTF-8 解码）；超过 maxBytes 返回 null。防止无界读取耗尽内存。</summary>
