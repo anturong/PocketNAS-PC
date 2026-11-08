@@ -8,7 +8,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>PocketNAS-PC</AssemblyName>
     <RootNamespace>PocketNAS.PC</RootNamespace>
-    <Version>1.0.0</Version>
+    <Version>1.0.3</Version>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <!-- 与手机端同一套品牌标记：深色圆角方块 + 橙色 p 环 + 白色节点 -->
     <ApplicationIcon>Assets\pocketnas.ico</ApplicationIcon>
