@@ -59,7 +59,6 @@
         #mainView.active{display:flex}
         .topbar{display:flex;align-items:center;gap:8px;padding:0 14px;height:52px;min-height:52px;background:var(--bg1);border-bottom:1px solid var(--bd)}
         .topbar .brand{display:flex;align-items:center;gap:8px;font-weight:700;font-size:15px;flex-shrink:0}
-        .topbar .brandI{width:30px;height:30px;background:linear-gradient(135deg,var(--ac),#4cc9f0);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px;color:#080a0f}
         .breadcrumb{display:flex;align-items:center;gap:2px;flex:1;min-width:0;overflow-x:auto;font-size:13px;scrollbar-width:none}
         .breadcrumb::-webkit-scrollbar{display:none}
         .bcI{color:var(--t2);cursor:pointer;padding:4px 7px;border-radius:4px;white-space:nowrap;transition:var(--tr);flex-shrink:0}
@@ -220,7 +219,49 @@
         }
         @media(min-width:769px){.mBar{display:none!important}.mSrch{display:none!important}}
         @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
-    </style>
+    /* <pnsBrandCss> */
+/* PocketNAS 共用品牌片段 —— 单一真源
+ * 消费方（三处，CSS 内容一字不差）：
+ *   PC    easy_webdav/src/WebDAVService/web/browse.html   .pnsIc / .pnsNm / .pnsSfx
+ *   PC    easy_webdav/src/WebDAVService/web/login.html    .brandRow + .lg 变体
+ *   手机  app/src/main/java/com/filemgr/net/BrowsePages.kt  BRAND_CSS
+ * 图标素材：src/PocketNAS.PC/Assets/brand/pocketnas_64.png
+ *   —— 深色圆角方块 + 橙色 p。只保留这一个方块标志，软件名交给 HTML 文本：
+ *      以前把 wordmark 整张图嵌进来，字是图片里的死字，副标题还多占一行，
+ *      想调字号/颜色只能重新出图。现在一行 = 小标志 + PocketNAS + 更小的 -PC/-Phone。
+ * 改这里或换素材后，跑 `python tools/sync-brand.py` 同步两端，勿在页面/Kotlin 里手改生成块。
+ * 用内嵌 base64 而不是 <img src="...png">：PC 服务只 serve 三个 HTML 模板，没有静态资源路由。
+ */
+.pnsIc{display:block;width:24px;height:24px;flex:0 0 auto;object-fit:contain;
+  background:transparent;border:0}
+.pnsNm{font-size:15px;font-weight:700;color:#fff;letter-spacing:.01em;line-height:1;white-space:nowrap}
+/* 后缀：同一行、全白、字号明显比软件名小一档，不加底色小签 */
+.pnsSfx{font-size:10px;font-weight:600;letter-spacing:.05em;color:#fff;opacity:.62;
+  line-height:1;white-space:nowrap;align-self:center;margin-left:1px}
+/* 登录页大号：标志 44、名字 26、后缀 13 */
+.pnsIc.lg{width:44px;height:44px}
+.pnsNm.lg{font-size:26px}
+.pnsNm.lg + .pnsSfx{font-size:13px;opacity:.7}
+/* 登录页：标志 / 名字 / 后缀 同一行居中 */
+.brandRow{display:flex;align-items:center;justify-content:center;gap:10px;margin:0 auto 22px}
+@media(max-width:768px){
+  .pnsIc{width:22px;height:22px}
+  .pnsNm{font-size:14px}
+  .pnsIc.lg{width:38px;height:38px}
+  .pnsNm.lg{font-size:22px}
+  .brandRow{margin-bottom:18px;gap:8px}
+}
+/* </pnsBrandCss> */
+</style>
+<script>
+/* 服务端把当前会话用户塞进来：从 /login 表单 302 回来时 Cookie 已经在了，
+   这里就知道「已经登录过」，不再让人在页面里登第二遍。没有会话时是 null。 */
+window.__PNS_USER__={{USER}};
+document.addEventListener("DOMContentLoaded",function(){
+    var l=document.getElementById("loginBrand"),t=document.querySelector(".topbar .pnsIc");
+    if(l&&t) l.src=t.src;
+});
+</script>
 </head>
 <body>
 
@@ -228,9 +269,9 @@
     <div class="loginBg"></div>
     <div class="loginGrid"></div>
     <div class="loginCard">
-        <div class="loginLogo"><i class="fas fa-folder-tree"></i></div>
-        <h1 style="font-size:22px;font-weight:700;margin-bottom:4px">{{APP_NAME}}</h1>
-        <p style="color:var(--t2);font-size:13px;margin-bottom:24px">WebDAV 文件共享服务</p>
+        <!-- 登录页用同一个标志：直接复用顶栏那张 base64，避免再嵌一份副本 -->
+        <div class="brandRow"><img class="pnsIc lg" id="loginBrand" alt=""><b class="pnsNm lg">PocketNAS</b><span class="pnsSfx">-PC</span></div>
+        <p style="color:var(--t2);font-size:13px;margin:0 0 24px;text-align:center">WebDAV 文件共享服务</p>
         <div style="display:flex;flex-direction:column;gap:12px">
             <div><label style="font-size:12px;color:var(--t2);margin-bottom:4px;display:block">用户名</label><input id="iUsr" type="text" class="inp" placeholder="用户名" autofocus></div>
             <div><label style="font-size:12px;color:var(--t2);margin-bottom:4px;display:block">密码</label><input id="iPwd" type="password" class="inp" placeholder="输入密码"></div>
@@ -243,7 +284,7 @@
 
 <div id="mainView">
     <div class="topbar">
-        <div class="brand"><div class="brandI"><i class="fas fa-folder-tree"></i></div><span>{{APP_NAME}}</span></div>
+        <div class="brand"><img class="pnsIc" src="data:image/png;base64,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" alt=""><b class="pnsNm">PocketNAS</b><span class="pnsSfx">-PC</span></div>
         <button class="btnUp" id="btnUp" title="返回上一级"><i class="fas fa-arrow-up"></i><span class="upTxt">上一级</span></button>
         <div class="breadcrumb" id="bc"></div>
         <div class="uArea">
@@ -459,7 +500,10 @@ var A = {
     start:function(){
         this.bindAll();
         this.path=U.lslash(window.location.pathname)||'/';
-        if(U.mob()){this.vm='grid';this.applyView();}
+        this.vm='list';this.applyView();
+        // 已经有会话（/login 表单登录过、或 Cookie 还没过期）→ 直接进主界面。
+        // 以前这里只认 localStorage 里的账号密码，于是「表单登录一次 + 页面再登一次」。
+        if(window.__PNS_USER__){this.enter(window.__PNS_USER__,'');return;}
         var saved=this.loadAuth();
         if(saved)this.login();
     },
@@ -486,6 +530,17 @@ var A = {
         for(var i=0;i<els.length;i++){var on=self.selH(els[i].dataset.p);els[i].classList.toggle('sel',on);var c=els[i].querySelector('.chk');if(c)c.classList.toggle('on',on);}
     },
 
+    /** 进主界面。pwd 为空 = 走会话 Cookie，不再发 Basic 头 */
+    enter:function(usr,pwd){
+        Dav.cfg({server:window.location.origin,username:pwd?usr:'',password:pwd||''});
+        document.getElementById('loginView').style.display='none';
+        document.getElementById('mainView').classList.add('active');
+        document.getElementById('uNm').textContent=usr;
+        document.getElementById('uAvt').textContent=(usr[0]||'?').toUpperCase();
+        document.getElementById('stSrv').textContent=window.location.origin;
+        return this.load();
+    },
+
     login:function(){
         var self=this;
         var usr=document.getElementById('iUsr').value.trim();
@@ -501,12 +556,7 @@ var A = {
         Dav.ls('/').then(function(){
             if(document.getElementById('iRem').checked)self.saveAuth(usr,pwd);
             Dav.session(usr,pwd).catch(function(){});
-            document.getElementById('loginView').style.display='none';
-            document.getElementById('mainView').classList.add('active');
-            document.getElementById('uNm').textContent=usr;
-            document.getElementById('uAvt').textContent=usr[0].toUpperCase();
-            document.getElementById('stSrv').textContent=window.location.origin;
-            return self.load();
+            return self.enter(usr,pwd);
         }).catch(function(e){
             err.textContent=e.message||'登录失败，请检查用户名和密码';
             err.style.display='block';
@@ -821,7 +871,7 @@ var A = {
             if(e.key==='Backspace'){e.preventDefault();var par=U.dir(self.path);if(par!==self.path)self.nav(par);}
         });
 
-        window.addEventListener('resize',function(){if(U.mob()&&self.vm==='list')self.setView('grid');});
+        // 固定表格：窄屏与 resize 都不再强制切回网格。
     }
 };
 

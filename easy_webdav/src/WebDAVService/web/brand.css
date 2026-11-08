@@ -1,0 +1,31 @@
+/* PocketNAS 共用品牌片段 —— 单一真源
+ * 消费方（三处，CSS 内容一字不差）：
+ *   PC    easy_webdav/src/WebDAVService/web/browse.html   .pnsIc / .pnsNm / .pnsSfx
+ *   PC    easy_webdav/src/WebDAVService/web/login.html    .brandRow + .lg 变体
+ *   手机  app/src/main/java/com/filemgr/net/BrowsePages.kt  BRAND_CSS
+ * 图标素材：src/PocketNAS.PC/Assets/brand/pocketnas_64.png
+ *   —— 深色圆角方块 + 橙色 p。只保留这一个方块标志，软件名交给 HTML 文本：
+ *      以前把 wordmark 整张图嵌进来，字是图片里的死字，副标题还多占一行，
+ *      想调字号/颜色只能重新出图。现在一行 = 小标志 + PocketNAS + 更小的 -PC/-Phone。
+ * 改这里或换素材后，跑 `python tools/sync-brand.py` 同步两端，勿在页面/Kotlin 里手改生成块。
+ * 用内嵌 base64 而不是 <img src="...png">：PC 服务只 serve 三个 HTML 模板，没有静态资源路由。
+ */
+.pnsIc{display:block;width:24px;height:24px;flex:0 0 auto;object-fit:contain;
+  background:transparent;border:0}
+.pnsNm{font-size:15px;font-weight:700;color:#fff;letter-spacing:.01em;line-height:1;white-space:nowrap}
+/* 后缀：同一行、全白、字号明显比软件名小一档，不加底色小签 */
+.pnsSfx{font-size:10px;font-weight:600;letter-spacing:.05em;color:#fff;opacity:.62;
+  line-height:1;white-space:nowrap;align-self:center;margin-left:1px}
+/* 登录页大号：标志 44、名字 26、后缀 13 */
+.pnsIc.lg{width:44px;height:44px}
+.pnsNm.lg{font-size:26px}
+.pnsNm.lg + .pnsSfx{font-size:13px;opacity:.7}
+/* 登录页：标志 / 名字 / 后缀 同一行居中 */
+.brandRow{display:flex;align-items:center;justify-content:center;gap:10px;margin:0 auto 22px}
+@media(max-width:768px){
+  .pnsIc{width:22px;height:22px}
+  .pnsNm{font-size:14px}
+  .pnsIc.lg{width:38px;height:38px}
+  .pnsNm.lg{font-size:22px}
+  .brandRow{margin-bottom:18px;gap:8px}
+}
