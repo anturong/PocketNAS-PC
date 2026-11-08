@@ -1179,7 +1179,35 @@ public class WebDAVServer
         response.Close();
     }
 
-    private static async Task SendBrowsePage(HttpListenerContext ctx)
+    /// <summary>把用户名拼成 JS 字面量（null 表示没有会话），双引号/反斜杠都转义掉</summary>
+    private static string JsonStringOrNull(string? value)
+    {
+        if (value == null) return "null";
+        var sb = new StringBuilder(value.Length + 2);
+        sb.Append('"');
+        foreach (var c in value)
+        {
+            switch (c)
+            {
+                case '"': sb.Append("\\\""); break;
+                case '\\': sb.Append("\\\\"); break;
+                case '\n': sb.Append("\\n"); break;
+                case '\r': sb.Append("\\r"); break;
+                default: sb.Append(c); break;
+            }
+        }
+        sb.Append('"');
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// 提供浏览页 SPA。
+    ///
+    /// 必须把「当前会话用户」注进去：从 /login 表单 302 回来时 Cookie 已经种好了，
+    /// 前端据此直接进主界面。以前没有这个占位符，前端只认 localStorage 里的账号密码，
+    /// 于是表单登录一次、页面里再登一次——这就是「登录两回」的来源。
+    /// </summary>
+    private async Task SendBrowsePage(HttpListenerContext ctx)
     {
         _browseTemplate ??= LoadWebTemplate("browse.html");
 
@@ -1187,7 +1215,8 @@ public class WebDAVServer
             .Replace("{{APP_NAME}}", AppInfo.Name)
             .Replace("{{AUTHOR}}", AppInfo.Author)
             .Replace("{{AUTHOR_URL}}", AppInfo.AuthorUrl)
-            .Replace("{{VERSION}}", AppInfo.Version);
+            .Replace("{{VERSION}}", AppInfo.Version)
+            .Replace("{{USER}}", JsonStringOrNull(GetSessionUser(ctx)));
 
         var bytes = Encoding.UTF8.GetBytes(html);
         ctx.Response.ContentType = "text/html; charset=utf-8";
