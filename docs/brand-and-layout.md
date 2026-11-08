@@ -30,6 +30,22 @@ pocketnas_128.png  pocketnas_256.png  pocketnas.ico
 用途：网页品牌行的小图标、安装包 / exe 图标、`ic_brand_mark`（手机首页）。
 **网页里不用 `<img src="...png">`**：PC 的服务只 serve 三个 HTML 模板，没有静态资源路由，所以品牌图必须 base64 内嵌（由 `tools/sync-brand.py` 生成）。
 
+**矢量源在 `brand/logo/`**，由 `tools/vectorize-logo.py` 从 `pocketnas_256.png` 反推（形状误差 < 1.2%）：
+
+| 文件 | 用途 |
+|---|---|
+| `pocketnas-logo.svg` | 默认版，自带渐变深底 |
+| `pocketnas-logo-flat.svg` | 16–32px、印刷，自带纯色深底 |
+| `pocketnas-mark-on-dark.svg` | 深色界面，透明底 + 白点 |
+| `pocketnas-mark-on-light.svg` | 白纸 / 浅灰底，透明底 + 深色点 |
+| `pocketnas-mark-mono.svg` | 单色，节点挖空 |
+
+概念、构造尺寸、安全边距、禁用规则、改标志的流程，都写在 **[`brand/LOGO.md`](../brand/LOGO.md)**。定稿一览图：[`shots/logo-sheet.png`](shots/logo-sheet.png)。
+
+> 手机 `app/src/main/res/drawable/app_icon.xml` 虽然也是这个形状，但它是**自适应图标的前景层**，
+> 按 Android 规范只占画布 66%——与主标志构图不同，不能互相替代。
+
+
 ### 1.2 字标（wordmark）
 
 | 文件 | 用途 |
