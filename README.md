@@ -1,6 +1,12 @@
 # PocketNAS-PC
 
+<p align="center">
+  <img src="src/PocketNAS.PC/Assets/brand/pocketnas_256.png" width="88" height="88" alt="PocketNAS">
+</p>
+
 PocketNAS 的 Windows 桌面端合集：把原先分散的 WebDAV 管理器和 SSH 配置助手合并成一个程序，并预留 FTPS / DLNA 模块位。
+
+> 标志、配色与网页版面的定稿记录见 [`brand/LOGO.md`](brand/LOGO.md)（含 SVG 矢量源与构造尺寸）和 [`docs/brand-and-layout.md`](docs/brand-and-layout.md)。
 
 ## 模块
 
