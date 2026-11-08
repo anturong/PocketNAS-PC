@@ -1,0 +1,137 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>PocketNAS 标志定稿</title>
+<style>
+  :root{
+    --bg:#0E0E13; --card:#16161C; --line:#24242E;
+    --txt:#E8EAEE; --dim:#8B93A3; --dim2:#5C6472;
+    --orange:#FD692D;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--txt);
+    font-family:"Segoe UI","Microsoft YaHei",system-ui,sans-serif}
+  .wrap{width:1200px;padding:40px 44px 36px}
+  header{display:flex;align-items:baseline;justify-content:space-between;
+    border-bottom:1px solid var(--line);padding-bottom:16px}
+  h1{margin:0;font-size:20px;font-weight:650;letter-spacing:.2px}
+  h1 span{color:var(--dim2);font-weight:400;margin-left:10px;font-size:13px}
+  .meta{font-size:12px;color:var(--dim2);letter-spacing:.4px}
+  h2{font-size:11px;font-weight:600;color:var(--dim2);letter-spacing:1.6px;
+    text-transform:uppercase;margin:30px 0 12px}
+  .row{display:grid;gap:14px}
+  .hero{grid-template-columns:236px 1fr}
+  .hero .big{background:var(--card);border:1px solid var(--line);border-radius:16px;
+    display:flex;align-items:center;justify-content:center;height:236px}
+  .hero .big img{width:188px;height:188px}
+  .variants{grid-template-columns:repeat(4,1fr)}
+  .v{background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:16px 12px 12px;text-align:center}
+  .v .box{height:88px;display:flex;align-items:center;justify-content:center}
+  .v img{width:64px;height:64px}
+  .v .onlight{width:64px;height:64px;background:#F2F3F5;border-radius:14px;
+    display:flex;align-items:center;justify-content:center}
+  .v .onlight img{width:64px;height:64px}
+  .cap{margin-top:10px;font-size:11px;color:var(--dim);line-height:1.5}
+  .cap b{display:block;color:var(--txt);font-weight:500;font-size:12px;margin-bottom:2px}
+  .sizes{grid-template-columns:repeat(6,1fr)}
+  .sz{background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:14px 6px 10px;text-align:center}
+  .sz .pad{height:112px;display:flex;align-items:flex-end;justify-content:center}
+  .sz em{display:block;margin-top:8px;font-style:normal;font-size:10px;color:var(--dim2);
+    letter-spacing:.5px}
+  .locks{grid-template-columns:1fr 1fr}
+  .lock{background:var(--card);border:1px solid var(--line);border-radius:14px;
+    height:104px;display:flex;align-items:center;justify-content:center;gap:10px}
+  .lock img{width:24px;height:24px}
+  .lock.lg img{width:44px;height:44px}
+  .lock b{font-size:15px;font-weight:700;color:#fff;letter-spacing:.1px}
+  .lock .sfx{font-size:10px;font-weight:600;color:#fff;opacity:.62;letter-spacing:.2px}
+  .lock.lg b{font-size:26px}
+  .lock.lg .sfx{font-size:13px;opacity:.7}
+  .lockwrap{display:flex;flex-direction:column;align-items:center;gap:8px}
+  .lockwrap .lb{font-size:10px;color:var(--dim2);letter-spacing:.6px}
+  .cols{grid-template-columns:1.25fr 1fr}
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+  .sw{display:flex;align-items:center;gap:10px;padding:7px 0;font-size:12px}
+  .sw i{width:26px;height:26px;border-radius:8px;display:block;
+    border:1px solid rgba(255,255,255,.09)}
+  .sw code{color:var(--dim);font-family:Consolas,monospace;font-size:11.5px}
+  .sw span{color:var(--dim2);font-size:11px;margin-left:auto}
+  table{border-collapse:collapse;font-size:12px}
+  td{padding:6px 0;color:var(--dim);border-bottom:1px solid #1C1C24}
+  td:first-child{color:var(--dim2);width:96px}
+  td:last-child{color:var(--txt);font-family:Consolas,monospace;font-size:11.5px}
+  tr:last-child td{border-bottom:none}
+  footer{margin-top:26px;border-top:1px solid var(--line);padding-top:12px;
+    font-size:11px;color:var(--dim2);display:flex;justify-content:space-between}
+</style>
+<div class="wrap">
+  <header>
+    <h1>PocketNAS<span>标志与锁版定稿</span></h1>
+    <div class="meta">2026-11-08 · 手机 v1.21 / PC v1.0.3</div>
+  </header>
+
+  <h2>主标志</h2>
+  <div class="row hero">
+    <div class="big"><img src="pocketnas-logo.svg"></div>
+    <div class="row variants">
+      <div class="v"><div class="box"><img src="pocketnas-logo-flat.svg"></div>
+        <div class="cap"><b>纯色底</b>16–32px 优先</div></div>
+      <div class="v"><div class="box"><img src="pocketnas-mark-on-dark.svg"></div>
+        <div class="cap"><b>记号 · 深底</b>无背景块</div></div>
+      <div class="v"><div class="box"><div class="onlight"><img src="pocketnas-mark-on-light.svg"></div></div>
+        <div class="cap"><b>记号 · 浅底</b>节点换深色</div></div>
+      <div class="v"><div class="box"><img src="pocketnas-mark-mono.svg"></div>
+        <div class="cap"><b>单色</b>节点挖空</div></div>
+    </div>
+  </div>
+
+  <h2>尺寸阶梯（按实际像素）</h2>
+  <div class="row sizes">
+    <div class="sz"><div class="pad"><img src="pocketnas-logo-flat.svg" width="16" height="16"></div><em>16</em></div>
+    <div class="sz"><div class="pad"><img src="pocketnas-logo-flat.svg" width="24" height="24"></div><em>24</em></div>
+    <div class="sz"><div class="pad"><img src="pocketnas-logo-flat.svg" width="32" height="32"></div><em>32</em></div>
+    <div class="sz"><div class="pad"><img src="pocketnas-logo-flat.svg" width="48" height="48"></div><em>48</em></div>
+    <div class="sz"><div class="pad"><img src="pocketnas-logo.svg" width="64" height="64"></div><em>64</em></div>
+    <div class="sz"><div class="pad"><img src="pocketnas-logo.svg" width="96" height="96"></div><em>96</em></div>
+  </div>
+
+  <h2>锁版：标志 + 软件名 + 端后缀，同一行</h2>
+  <div class="row locks">
+    <div class="lock"><img src="../../src/PocketNAS.PC/Assets/brand/pocketnas_64.png"><b>PocketNAS</b><span class="sfx">-PC</span></div>
+    <div class="lock"><img src="../../src/PocketNAS.PC/Assets/brand/pocketnas_64.png"><b>PocketNAS</b><span class="sfx">-Phone</span></div>
+  </div>
+  <div class="row locks" style="margin-top:12px">
+    <div class="lock lg"><img src="../../src/PocketNAS.PC/Assets/brand/pocketnas_64.png"><b>PocketNAS</b><span class="sfx">-PC</span></div>
+    <div class="lock lg"><img src="../../src/PocketNAS.PC/Assets/brand/pocketnas_64.png"><b>PocketNAS</b><span class="sfx">-Phone</span></div>
+  </div>
+
+  <h2>配色与构造</h2>
+  <div class="row cols">
+    <div class="panel">
+      <div class="sw"><i style="background:linear-gradient(135deg,#1E1E28,#15151D)"></i>
+        <code>#1E1E28 → #15151D</code><span>方块底渐变</span></div>
+      <div class="sw"><i style="background:#1A1A22"></i>
+        <code>#1A1A22</code><span>纯色底 / 浅底版节点</span></div>
+      <div class="sw"><i style="background:#FD692D"></i>
+        <code>#FD692D</code><span>品牌橙 · 字母 p</span></div>
+      <div class="sw"><i style="background:#FFFFFF"></i>
+        <code>#FFFFFF</code><span>节点（深底版）</span></div>
+    </div>
+    <div class="panel">
+      <table>
+        <tr><td>画布</td><td>108 × 108</td></tr>
+        <tr><td>圆角</td><td>23.6 = 21.9%</td></tr>
+        <tr><td>p 占幅</td><td>74.6 × 73.8</td></tr>
+        <tr><td>节点直径</td><td>19.3（占幅 25.9%）</td></tr>
+        <tr><td>安全边距</td><td>≥ 13.5（12.5%）</td></tr>
+        <tr><td>最小尺寸</td><td>16px / 印刷 8mm</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <footer>
+    <span>矢量源：brand/logo/*.svg　位图母版：src/PocketNAS.PC/Assets/brand/pocketnas_256.png</span>
+    <span>由 tools/vectorize-logo.py 从母版反推，形状误差 &lt; 1.2%</span>
+  </footer>
+</div>
