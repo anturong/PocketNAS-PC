@@ -18,6 +18,13 @@ h1{text-align:center;font-size:22px;font-weight:700;margin-bottom:4px}
 .sub{text-align:center;color:var(--t2);font-size:13px;margin-bottom:24px}
 .card input{width:100%;background:var(--bg1);border:1px solid var(--bd);border-radius:var(--r);padding:11px 14px;color:var(--t1);font-family:inherit;font-size:15px;outline:none;transition:.2s ease;margin-bottom:12px}
 .card input:focus{border-color:var(--ac);box-shadow:0 0 0 3px var(--acd)}
+/* 密码框右侧的小眼睛：自带 SVG，不依赖 Font Awesome CDN（局域网离线时图标也不能消失） */
+.pw{position:relative}
+/* 用 .card .pw 提高优先级：窄屏媒体查询里的 .card input 会重置 padding，别把眼睛压到框里 */
+.card .pw input{padding-right:48px}
+.card .eye{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:34px;height:34px;padding:0;background:transparent;border:none;border-radius:6px;color:var(--t3);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:color .2s,background .2s}
+.card .eye:hover{color:var(--t1);background:rgba(255,255,255,.06)}
+.card .eye svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .card button{width:100%;padding:12px;background:var(--ac);color:#080a0f;border:none;border-radius:var(--r);font-size:15px;font-weight:600;cursor:pointer;transition:opacity .2s;font-family:inherit}
 .card button:hover{opacity:.9}
 .error{background:rgba(255,71,87,.12);color:var(--dg);padding:10px 14px;border-radius:8px;margin-bottom:16px;text-align:center;font-size:14px}
@@ -40,9 +47,28 @@ h1{text-align:center;font-size:22px;font-weight:700;margin-bottom:4px}
 {{ERROR_BLOCK}}
 <form method="post">
 <input type="text" name="username" placeholder="用户名" required autofocus>
-<input type="password" name="password" placeholder="密码" required>
+<div class="pw">
+<input type="password" name="password" id="pw" placeholder="密码" required>
+<button type="button" class="eye" id="eye" title="显示密码" aria-label="显示密码" onclick="togglePw()">
+<svg viewBox="0 0 24 24" id="eyeOn"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+<svg viewBox="0 0 24 24" id="eyeOff" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+</button>
+</div>
 <button type="submit"><i class="fas fa-right-to-bracket"></i> 登 录</button>
 </form>
 </div>
+<script>
+function togglePw(){
+    var i=document.getElementById('pw'),on=document.getElementById('eyeOn'),
+        off=document.getElementById('eyeOff'),btn=document.getElementById('eye');
+    var show=i.type==='password';
+    i.type=show?'text':'password';
+    on.style.display=show?'none':'block';
+    off.style.display=show?'block':'none';
+    btn.title=show?'隐藏密码':'显示密码';
+    btn.setAttribute('aria-label',btn.title);
+    i.focus();
+}
+</script>
 </body>
 </html>

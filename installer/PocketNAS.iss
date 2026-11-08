@@ -14,7 +14,10 @@
 ;   彻底方案是把这些路径挪到 {commonappdata}\PocketNAS，属于代码改动，另行排期。
 
 #define MyAppName "PocketNAS"
-#define MyAppVersion "1.0.1"
+; 由 build.ps1 用 /DMyAppVersion=... 覆盖；不加 #ifndef 会吃掉命令行的 /D
+#ifndef MyAppVersion
+  #define MyAppVersion "1.0.1"
+#endif
 #define MyAppPublisher "PocketNAS"
 #define MyAppExeName "PocketNAS-PC.exe"
 
