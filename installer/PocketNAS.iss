@@ -16,7 +16,7 @@
 #define MyAppName "PocketNAS"
 ; 由 build.ps1 用 /DMyAppVersion=... 覆盖；不加 #ifndef 会吃掉命令行的 /D
 #ifndef MyAppVersion
-  #define MyAppVersion "1.0.4"
+  #define MyAppVersion "1.0.5"
 #endif
 #define MyAppPublisher "PocketNAS"
 #define MyAppExeName "PocketNAS-PC.exe"
@@ -72,7 +72,12 @@ Name: "en"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
-Name: "installservice"; Description: "注册并启动 WebDAV / FTPS 服务（开机自启，无人登录也能访问）"; GroupDescription: "服务："; Flags: checkedonce
+; installservice 不能加 checkedonce。checkedonce 的语义是「仅首次安装时默认勾选」，
+; 升级安装一律默认不勾——而下面 [Code] 里那段注册逻辑正是靠这个任务判断的，
+; 于是升级时服务注册整段被跳过，服务 ImagePath 一直停在旧位置（开发目录），
+; 新装的 service\web 资源没有任何进程读，表现为「网页改了但装完还是老样子」。
+; 服务是核心功能，默认就该勾。
+Name: "installservice"; Description: "注册并启动 WebDAV / FTPS 服务（开机自启，无人登录也能访问）"; GroupDescription: "服务："
 
 [Files]
 ; 整目录铺开；用户自己改出来的配置和共享数据不在包里，不会被覆盖
@@ -108,6 +113,19 @@ end;
 function RunHidden(const Exe, Params: String): Integer;
 begin
   Exec(Exe, Params, '', SW_HIDE, ewWaitUntilTerminated, Result);
+end;
+
+{ 系统里是否已注册过这个服务。
+  升级安装时服务必然已经在，此时必须重新注册一次：重装的目的就是把服务的
+  ImagePath 从旧位置改到本次安装目录。如果只靠任务勾选来判断，一旦任务没勾
+  （静默安装、或用户手动取消），旧 ImagePath 就会一直留着，
+  服务继续从旧目录读 service 文件，新装的文件形同虚设。 }
+function ServiceExists(const SvcName: String): Boolean;
+var
+  ImagePath: String;
+begin
+  Result := RegQueryStringValue(HKLM,
+    'SYSTEM\CurrentControlSet\Services\' + SvcName, 'ImagePath', ImagePath);
 end;
 
 { 网盘 / 云同步目录一旦出现，服务在 Session 0 必然读不到占位符（0x8007018B），提前拦住 }
@@ -197,7 +215,14 @@ begin
     PrepareDataDirs;
     GrantDataAcls;
 
-    if WizardIsTaskSelected('installservice') then
+    { 两个条件任一成立就注册：
+      1) 任务被勾选（新装机器的常规路径）；
+      2) 系统里已有同名服务（升级 / 静默安装）——这一条是兜底，
+         服务已经在跑却跳过注册，等于新文件装好了但没人读，
+         1.0.4 之前「网页怎么改装都不变」就是这么来的。 }
+    if WizardIsTaskSelected('installservice')
+       or ServiceExists('{#WebDavSvcName}')
+       or ServiceExists('{#FtpsSvcName}') then
     begin
       Exe := ExpandConstant('{app}\{#MyAppExeName}');
       { 复用程序自己的提权入口：防火墙规则、URL ACL、证书绑定都在里面，不另写一份。
