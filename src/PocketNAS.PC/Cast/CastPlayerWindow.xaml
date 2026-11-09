@@ -1,0 +1,41 @@
+<Window x:Class="PocketNAS.PC.Cast.CastPlayerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="投屏播放" Height="560" Width="940"
+        WindowStartupLocation="CenterScreen"
+        Background="#FF08090C">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <MediaElement x:Name="Player" Grid.Row="0"
+                      LoadedBehavior="Manual" UnloadedBehavior="Stop"
+                      Stretch="Uniform" MediaFailed="Player_MediaFailed"/>
+        <TextBlock x:Name="TxtError" Grid.Row="0" Visibility="Collapsed"
+                   TextWrapping="Wrap" Margin="24" FontSize="13"
+                   Foreground="#FFF09595" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+
+        <Border Grid.Row="1" Background="{StaticResource Bg.Deep}"
+                BorderBrush="{StaticResource Border.Subtle}" BorderThickness="0,1,0,0" Padding="12,9">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                    <TextBlock x:Name="TxtTitle" FontSize="12.5" FontWeight="SemiBold"
+                               Foreground="{StaticResource Fg.Text}" TextTrimming="CharacterEllipsis"/>
+                    <TextBlock x:Name="TxtFrom" FontSize="10.5" Margin="0,3,0,0"
+                               Foreground="{StaticResource Fg.Hint}"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Content="复制地址" Padding="10,4" Margin="0,0,6,0" Click="BtnCopy_Click"/>
+                    <Button x:Name="BtnFull" Content="全屏" Padding="10,4" Margin="0,0,6,0" Click="BtnFull_Click"/>
+                    <Button Content="停止" Padding="10,4" Click="BtnStop_Click"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

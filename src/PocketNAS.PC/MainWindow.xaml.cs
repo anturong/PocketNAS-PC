@@ -101,7 +101,6 @@ public partial class MainWindow : Window
     {
         var blue = (Brush)FindResource("Accent.Blue");
         var green = (Brush)FindResource("Accent.Green");
-        var hint = (Brush)FindResource("Fg.Hint");
         var muted = (Brush)FindResource("Fg.Muted");
 
         _modules.Add(new NavModule
@@ -124,16 +123,15 @@ public partial class MainWindow : Window
         });
         _modules.Add(new NavModule
         {
-            Key = "dlna", Title = "DLNA", Status = "预留",
-            Subtitle = "预留模块位，本期不提供实现",
-            Dot = hint, TitleColor = hint, TagText = "预留", TagVisibility = Visibility.Visible
+            Key = "cast", Title = "投屏接收", Status = "就绪",
+            Subtitle = "手机发现这台 PC 并投送视频/音频，独立窗口播放",
+            Dot = blue, TitleColor = muted
         });
 
         _views["webdav"] = new WebDavView();
         _views["ssh"] = new SshHelper.SshView();
         _views["ftps"] = new FtpsView();
-        _views["dlna"] = new ModulePlaceholder("DLNA", "预留模块",
-            "位置已留好，等确定 DLNA 媒体库方案后再填充。");
+        _views["cast"] = new CastView();
     }
 
     private void NavList_SelectionChanged(object sender, SelectionChangedEventArgs e)
