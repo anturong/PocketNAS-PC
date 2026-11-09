@@ -16,7 +16,7 @@
 #define MyAppName "PocketNAS"
 ; 由 build.ps1 用 /DMyAppVersion=... 覆盖；不加 #ifndef 会吃掉命令行的 /D
 #ifndef MyAppVersion
-  #define MyAppVersion "1.0.3"
+  #define MyAppVersion "1.0.4"
 #endif
 #define MyAppPublisher "PocketNAS"
 #define MyAppExeName "PocketNAS-PC.exe"
